@@ -92,3 +92,28 @@ def csv_download(df, file_name: str, label: str | None = None, key: str | None =
         mime="text/csv",
         key=key,
     )
+
+
+def excel_download(sheets: dict, file_name: str, label: str | None = None, key: str | None = None):
+    """Download one or more DataFrames as a formatted Excel workbook (one sheet each)."""
+    from io import BytesIO
+
+    import pandas as pd
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    buf = BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as xw:
+        for name, df in sheets.items():
+            sheet = str(name)[:31]
+            df.to_excel(xw, sheet_name=sheet, index=False)
+            ws = xw.sheets[sheet]
+            ws.sheet_view.rightToLeft = is_ar()
+            for cell in ws[1]:
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.fill = PatternFill("solid", fgColor="1F4E79")
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            for col in ws.columns:
+                width = max(len(str(c.value)) if c.value is not None else 0 for c in col)
+                ws.column_dimensions[col[0].column_letter].width = min(max(10, width + 2), 45)
+    st.download_button(label or tr("⬇️ Download Excel", "⬇️ تحميل Excel"), buf.getvalue(), file_name=file_name,
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=key)

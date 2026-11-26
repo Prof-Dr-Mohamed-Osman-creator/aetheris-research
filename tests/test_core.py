@@ -107,3 +107,39 @@ def test_merge_harmonises_keys():
     m = merge_datasets(a, b, ["iso3", "year"], ["code", "year"], "left")
     assert m.loc[m.iso3 == "EGY", "gdp"].item() == 9.9
     assert "code" not in m.columns and len(m) == 2
+
+
+def test_extended_measures():
+    x = pd.Series([1.0, 2, 2, 4, 8, 16])
+    d = ds.describe_series(x)
+    from scipy import stats as st_
+    assert d["Mode"] == 2
+    assert np.isclose(d["Geometric mean"], st_.gmean(x))
+    assert np.isclose(d["Harmonic mean"], st_.hmean(x))
+    assert np.isclose(d["MAD (median)"], (x - x.median()).abs().median())
+    assert np.isclose(d["Mean abs. deviation"], (x - x.mean()).abs().mean())
+    assert np.isnan(ds.describe_series(pd.Series([1.0, 2, 3]))["Mode"])      # no repeated value
+    assert np.isnan(ds.describe_series(pd.Series([-1.0, 2, 3]))["Geometric mean"])
+
+
+def test_gini_and_lorenz():
+    assert np.isclose(ds.gini([5, 5, 5, 5]), 0)
+    assert np.isclose(ds.gini([0, 0, 0, 1]), 0.75)
+    lc = ds.lorenz_curve([1, 2, 3, 4])
+    assert lc.iloc[0].tolist() == [0, 0] and lc.iloc[-1].tolist() == [1, 1]
+    sh = ds.income_shares(np.ones(20))
+    assert np.isclose(sh["Share top 10% (%)"], 10) and np.isclose(sh["Palma ratio"], 0.25)
+
+
+def test_summary_groups_and_brief(demo):
+    brief = ds.summary_table(demo, ["avg_temp_c"], brief=True)
+    assert list(brief.columns) == ds.BRIEF_MEASURES
+    cen = ds.summary_table(demo, ["avg_temp_c"], groups=["central"])
+    assert list(cen.columns) == ds.MEASURE_GROUPS["central"]
+    full = ds.summary_table(demo, ["avg_temp_c"])
+    assert all(m in full.columns for g in ds.MEASURE_GROUPS.values() for m in g)
+    assert set(ds.MEASURE_LABELS_AR) >= {m for g in ds.MEASURE_GROUPS.values() for m in g}
+    pt = ds.percentile_table(demo, ["avg_temp_c"], "deciles")
+    assert list(pt.columns)[0] == "P10" and pt.shape[1] == 9
+    gg = ds.gini_by_group(demo, "production_t", "crop")
+    assert len(gg) == 4 and gg["Gini"].between(0, 1).all()

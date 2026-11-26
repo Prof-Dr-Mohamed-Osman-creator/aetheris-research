@@ -51,6 +51,83 @@ def time_columns(df: pd.DataFrame) -> list[str]:
 # ------------------------------------------
 # Summary statistics
 # ------------------------------------------
+# Measure groups, in display order. Keys are the canonical (English) names.
+MEASURE_GROUPS: dict[str, list[str]] = {
+    "central": ["Mean", "Median", "Mode", "Geometric mean", "Harmonic mean", "Trimmed mean (5%)"],
+    "dispersion": ["Std. Dev.", "Variance", "Range", "IQR", "Mean abs. deviation", "MAD (median)",
+                   "CV (%)", "Quartile coeff. of dispersion", "SE Mean", "95% CI Lower", "95% CI Upper"],
+    "shape": ["Skewness", "Kurtosis (excess)", "Pearson skewness (median)"],
+    "position": ["Min", "P5", "P10", "Q1", "Q3", "P90", "P95", "Max"],
+    "concentration": ["Gini", "Share top 10% (%)", "Share bottom 40% (%)", "Palma ratio"],
+    "data": ["N", "Missing", "Outliers (1.5·IQR)"],
+}
+GROUP_LABELS = {
+    "central": ("Central tendency", "مقاييس النزعة المركزية"),
+    "dispersion": ("Dispersion", "مقاييس التشتت"),
+    "shape": ("Shape of distribution", "مقاييس شكل التوزيع"),
+    "position": ("Position (percentiles)", "مقاييس الموقع (المئينات)"),
+    "concentration": ("Concentration & inequality", "مقاييس التركز وعدالة التوزيع"),
+    "data": ("Sample information", "معلومات العينة"),
+}
+# Compact set used in journal tables (APA-style "Table 1: Descriptive statistics")
+BRIEF_MEASURES = ["N", "Mean", "Std. Dev.", "Min", "Median", "Max", "Skewness", "Kurtosis (excess)"]
+
+MEASURE_LABELS_AR = {
+    "N": "عدد المشاهدات", "Missing": "القيم المفقودة", "Outliers (1.5·IQR)": "القيم الشاذة (1.5×المدى الربيعي)",
+    "Mean": "الوسط الحسابي", "Median": "الوسيط", "Mode": "المنوال", "Geometric mean": "الوسط الهندسي",
+    "Harmonic mean": "الوسط التوافقي", "Trimmed mean (5%)": "الوسط المشذّب (5%)",
+    "Std. Dev.": "الانحراف المعياري", "Variance": "التباين", "Range": "المدى", "IQR": "المدى الربيعي",
+    "Mean abs. deviation": "الانحراف المتوسط", "MAD (median)": "الانحراف المطلق الوسيط",
+    "CV (%)": "معامل الاختلاف (%)", "Quartile coeff. of dispersion": "معامل الاختلاف الربيعي",
+    "SE Mean": "الخطأ المعياري للوسط", "95% CI Lower": "الحد الأدنى لفترة الثقة 95%",
+    "95% CI Upper": "الحد الأعلى لفترة الثقة 95%",
+    "Skewness": "معامل الالتواء", "Kurtosis (excess)": "معامل التفرطح (الزائد)",
+    "Pearson skewness (median)": "معامل التواء بيرسون (بالوسيط)",
+    "Min": "أصغر قيمة", "P5": "المئين 5", "P10": "المئين 10 (العشير الأول)", "Q1": "الربيع الأدنى (Q1)",
+    "Q3": "الربيع الأعلى (Q3)", "P90": "المئين 90 (العشير التاسع)", "P95": "المئين 95", "Max": "أكبر قيمة",
+    "Gini": "معامل جيني", "Share top 10% (%)": "نصيب أعلى 10% (%)",
+    "Share bottom 40% (%)": "نصيب أدنى 40% (%)", "Palma ratio": "نسبة بالما",
+}
+
+
+def measure_label(key: str, lang: str = "en") -> str:
+    return MEASURE_LABELS_AR.get(key, key) if lang == "ar" else key
+
+
+def gini(values) -> float:
+    """Gini coefficient (population formula) for non-negative values; 0 = perfect equality."""
+    x = np.sort(np.asarray(pd.to_numeric(pd.Series(values), errors="coerce").dropna(), dtype=float))
+    n = x.size
+    if n < 2 or (x < 0).any() or x.sum() == 0:
+        return np.nan
+    i = np.arange(1, n + 1)
+    return float((2 * np.sum(i * x)) / (n * x.sum()) - (n + 1) / n)
+
+
+def lorenz_curve(values) -> pd.DataFrame:
+    """Cumulative population share vs cumulative value share (both 0..1)."""
+    x = np.sort(np.asarray(pd.to_numeric(pd.Series(values), errors="coerce").dropna(), dtype=float))
+    if x.size == 0 or x.sum() == 0:
+        return pd.DataFrame({"population_share": [0.0, 1.0], "value_share": [0.0, 1.0]})
+    cum = np.concatenate([[0.0], np.cumsum(x) / x.sum()])
+    pop = np.linspace(0, 1, x.size + 1)
+    return pd.DataFrame({"population_share": pop, "value_share": cum})
+
+
+def income_shares(values) -> dict:
+    """Shares held by the top 10% and bottom 40% of units, and the Palma ratio."""
+    x = np.sort(np.asarray(pd.to_numeric(pd.Series(values), errors="coerce").dropna(), dtype=float))
+    n = x.size
+    if n < 10 or (x < 0).any() or x.sum() == 0:
+        return {"Share top 10% (%)": np.nan, "Share bottom 40% (%)": np.nan, "Palma ratio": np.nan}
+    lc = lorenz_curve(x)
+    share_at = lambda p: float(np.interp(p, lc["population_share"], lc["value_share"]))  # noqa: E731
+    top10 = 1 - share_at(0.9)
+    bottom40 = share_at(0.4)
+    return {"Share top 10% (%)": top10 * 100, "Share bottom 40% (%)": bottom40 * 100,
+            "Palma ratio": top10 / bottom40 if bottom40 > 0 else np.nan}
+
+
 def describe_series(s: pd.Series) -> dict:
     x = pd.to_numeric(s, errors="coerce").dropna().astype(float)
     n, missing = int(x.size), int(s.size - x.size)
@@ -58,40 +135,83 @@ def describe_series(s: pd.Series) -> dict:
         return {"N": 0, "Missing": missing}
     mean = x.mean()
     std = x.std(ddof=1) if n > 1 else np.nan
-    q1, med, q3 = np.percentile(x, [25, 50, 75])
+    p5, p10, q1, med, q3, p90, p95 = np.percentile(x, [5, 10, 25, 50, 75, 90, 95])
     iqr = q3 - q1
     se = std / np.sqrt(n) if n > 1 else np.nan
     tcrit = stats.t.ppf(0.975, n - 1) if n > 1 else np.nan
     outliers = int(((x < q1 - 1.5 * iqr) | (x > q3 + 1.5 * iqr)).sum())
-    return {
+    counts = x.value_counts()
+    mode = float(counts.index[counts == counts.max()].min()) if counts.max() > 1 else np.nan
+    positive = bool((x > 0).all())
+    out = {
         "N": n,
         "Missing": missing,
+        # central tendency
         "Mean": mean,
+        "Median": med,
+        "Mode": mode,
+        "Geometric mean": float(stats.gmean(x)) if positive else np.nan,
+        "Harmonic mean": float(stats.hmean(x)) if positive else np.nan,
+        "Trimmed mean (5%)": float(stats.trim_mean(x, 0.05)),
+        # dispersion
+        "Std. Dev.": std,
+        "Variance": std ** 2 if n > 1 else np.nan,
+        "Range": x.max() - x.min(),
+        "IQR": iqr,
+        "Mean abs. deviation": float((x - mean).abs().mean()),
+        "MAD (median)": float((x - med).abs().median()),
+        "CV (%)": (std / abs(mean) * 100) if n > 1 and mean != 0 else np.nan,
+        "Quartile coeff. of dispersion": iqr / (q3 + q1) if (q3 + q1) != 0 else np.nan,
         "SE Mean": se,
         "95% CI Lower": mean - tcrit * se if n > 1 else np.nan,
         "95% CI Upper": mean + tcrit * se if n > 1 else np.nan,
-        "Median": med,
-        "Std. Dev.": std,
-        "Variance": std ** 2 if n > 1 else np.nan,
-        "Min": x.min(),
-        "Q1": q1,
-        "Q3": q3,
-        "Max": x.max(),
-        "Range": x.max() - x.min(),
-        "IQR": iqr,
-        "CV (%)": (std / abs(mean) * 100) if n > 1 and mean != 0 else np.nan,
+        # shape
         "Skewness": stats.skew(x, bias=False) if n > 2 else np.nan,
         "Kurtosis (excess)": stats.kurtosis(x, bias=False) if n > 3 else np.nan,
+        "Pearson skewness (median)": 3 * (mean - med) / std if n > 1 and std > 0 else np.nan,
+        # position
+        "Min": x.min(), "P5": p5, "P10": p10, "Q1": q1, "Q3": q3, "P90": p90, "P95": p95, "Max": x.max(),
+        # concentration
+        "Gini": gini(x),
         "Outliers (1.5·IQR)": outliers,
     }
+    out.update(income_shares(x))
+    return out
 
 
-def summary_table(df: pd.DataFrame, cols: list[str] | None = None) -> pd.DataFrame:
-    """One row per variable with a full set of descriptive statistics."""
+def summary_table(df: pd.DataFrame, cols: list[str] | None = None,
+                  groups: list[str] | None = None, brief: bool = False) -> pd.DataFrame:
+    """One row per variable. `groups` selects measure groups (see MEASURE_GROUPS);
+    `brief=True` returns the compact journal-style set."""
     cols = cols or numeric_columns(df)
     table = pd.DataFrame({c: describe_series(df[c]) for c in cols}).T
+    if brief:
+        order = BRIEF_MEASURES
+    else:
+        groups = groups or list(MEASURE_GROUPS.keys())
+        order = [m for g in MEASURE_GROUPS if g in groups for m in MEASURE_GROUPS[g]]
+    table = table.reindex(columns=[m for m in order if m in table.columns])
     table.index.name = "Variable"
     return table
+
+
+def percentile_table(df: pd.DataFrame, cols: list[str], kind: str = "deciles") -> pd.DataFrame:
+    """Deciles (10..90), quartiles or ventiles (5..95) for each variable."""
+    qs = {"quartiles": [25, 50, 75], "deciles": list(range(10, 100, 10)),
+          "ventiles": list(range(5, 100, 5))}[kind]
+    rows = {}
+    for c in cols:
+        x = pd.to_numeric(df[c], errors="coerce").dropna()
+        rows[c] = np.percentile(x, qs) if len(x) else [np.nan] * len(qs)
+    return pd.DataFrame(rows, index=[f"P{q}" for q in qs]).T
+
+
+def gini_by_group(df: pd.DataFrame, value_col: str, group_col: str) -> pd.DataFrame:
+    rows = []
+    for g, sub in df.groupby(group_col):
+        sh = income_shares(sub[value_col])
+        rows.append({"Group": g, "N": int(sub[value_col].notna().sum()), "Gini": gini(sub[value_col]), **sh})
+    return pd.DataFrame(rows)
 
 
 def group_summary(df: pd.DataFrame, group_col: str, value_cols: list[str],
@@ -314,6 +434,15 @@ def interpret_variable(name: str, d: dict, lang: str = "en") -> str:
     else:
         disp = "تشتت مرتفع (عدم تجانس واضح)" if ar else "high dispersion (marked heterogeneity)"
     out = d.get("Outliers (1.5·IQR)", 0)
+    g = d.get("Gini", np.nan)
+    if pd.isna(g):
+        conc = ""
+    elif g < 0.3:
+        conc = " (توزيع متقارب نسبياً بين المشاهدات)" if ar else " (relatively even distribution across units)"
+    elif g < 0.5:
+        conc = " (تركز متوسط)" if ar else " (moderate concentration)"
+    else:
+        conc = " (تركز مرتفع في عدد محدود من المشاهدات)" if ar else " (high concentration in few units)"
 
     if ar:
         txt = (f"<b>{name}</b>: بلغ المتوسط {_f(d['Mean'])} بانحراف معياري {_f(d['Std. Dev.'])} "
@@ -323,6 +452,10 @@ def interpret_variable(name: str, d: dict, lang: str = "en") -> str:
             txt += f" توجد {out} قيمة شاذة وفق قاعدة 1.5×المدى الربيعي، ويُنصح بفحصها قبل التحليل القياسي."
         if not pd.isna(sk) and abs(sk) >= 1:
             txt += " يُفضَّل استخدام الوسيط في الوصف، والنظر في التحويل اللوغاريتمي أو الاختبارات اللامعلمية."
+        if not pd.isna(g):
+            txt += f" معامل جيني {_f(g, 3)}{conc}."
+        if not pd.isna(d.get("Geometric mean", np.nan)):
+            txt += f" الوسط الهندسي {_f(d['Geometric mean'])}، وهو الأنسب لمتوسطات معدلات النمو والأرقام القياسية."
     else:
         txt = (f"<b>{name}</b>: mean = {_f(d['Mean'])}, SD = {_f(d['Std. Dev.'])} "
                f"(95% CI {_f(d['95% CI Lower'])} – {_f(d['95% CI Upper'])}), median = {_f(d['Median'])}. "
@@ -331,6 +464,10 @@ def interpret_variable(name: str, d: dict, lang: str = "en") -> str:
             txt += f" {out} outlier(s) by the 1.5×IQR rule — inspect them before econometric modelling."
         if not pd.isna(sk) and abs(sk) >= 1:
             txt += " Report the median, and consider a log transformation or non-parametric tests."
+        if not pd.isna(g):
+            txt += f" Gini = {_f(g, 3)}{conc}."
+        if not pd.isna(d.get("Geometric mean", np.nan)):
+            txt += f" Geometric mean = {_f(d['Geometric mean'])} — preferred for averaging growth rates and index numbers."
     return txt
 
 
