@@ -4,13 +4,10 @@
 # ==========================================
 
 import streamlit as st
-import pandas as pd
 
-from config.settings import SYSTEM_NAME, SYSTEM_VERSION, LANGUAGE_KEY, DEFAULT_LANGUAGE
-from config.languages import get_text
-from core.memory import init_memory, has_data, memory_status_text, clear_memory
-from core.utils import get_current_language, set_language, t, inject_custom_css
-from data.upload import render_upload_section
+from config.settings import SYSTEM_VERSION, LANGUAGE_KEY, DEFAULT_LANGUAGE
+from core.memory import init_memory, has_data, memory_status_text, clear_memory, set_memory
+from core.utils import get_current_language, set_language, t, tr, inject_custom_css
 
 # ------------------------------------------
 # Page Config
@@ -19,59 +16,53 @@ st.set_page_config(
     page_title="Aetheris Research",
     page_icon="◈",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
 # ------------------------------------------
-# Initialize
+# Initialize (language first, so the whole page renders in one language)
 # ------------------------------------------
-init_memory()
-inject_custom_css()
-
 if LANGUAGE_KEY not in st.session_state:
     st.session_state[LANGUAGE_KEY] = DEFAULT_LANGUAGE
+init_memory()
+
+LANG_OPTIONS = {"en": "English", "ar": "العربية"}
+
+
+def _on_lang_change():
+    set_language(st.session_state["lang_select"])
+
+
+WINGS = ["home", "data_hub", "descriptive", "inferential", "econometrics",
+         "operations", "reports", "academy", "community"]
+WING_ICONS = {"home": "🏠", "data_hub": "📥", "descriptive": "📋", "inferential": "🧪",
+              "econometrics": "📐", "operations": "⚙️", "reports": "📄", "academy": "🎓", "community": "💬"}
 
 # ------------------------------------------
 # Sidebar - Language + Navigation
 # ------------------------------------------
 with st.sidebar:
-    st.markdown(f"### {t('sidebar_header')}")
-
-    # Language Switcher
-    lang_options = {"English": "en", "العربية": "ar"}
-    current_lang_label = "English" if get_current_language() == "en" else "العربية"
-    selected_label = st.selectbox(
-        t("language"),
-        options=list(lang_options.keys()),
-        index=0 if current_lang_label == "English" else 1
+    st.selectbox(
+        "Language / اللغة",
+        options=list(LANG_OPTIONS.keys()),
+        format_func=lambda c: LANG_OPTIONS[c],
+        index=list(LANG_OPTIONS.keys()).index(get_current_language()),
+        key="lang_select",
+        on_change=_on_lang_change,
     )
-    set_language(lang_options[selected_label])
+    inject_custom_css()
+
+    st.markdown(f"### {t('sidebar_header')}")
+    # Navigation keys are language-independent, so switching language keeps the current page
+    page = st.radio(t("menu_title"), WINGS, key="nav",
+                    format_func=lambda w: f"{WING_ICONS[w]}  {t(w)}",
+                    label_visibility="collapsed")
 
     st.markdown("---")
-
-    # Wings Menu
-    wings = [
-        t("home"),
-        t("data_hub"),
-        t("descriptive"),
-        t("inferential"),
-        t("econometrics"),
-        t("operations"),
-        t("reports"),
-        t("academy"),
-        t("community"),
-    ]
-
-    page = st.radio(t("menu_title"), wings, label_visibility="collapsed")
-
-    st.markdown("---")
-
-    # Smart Memory Status
     st.caption(f"**{t('smart_memory')}**")
     st.caption(memory_status_text(get_current_language()))
-
     if has_data():
-        if st.button(t("clear_memory"), use_container_width=True):
+        if st.button(t("clear_memory"), width="stretch"):
             clear_memory()
             st.rerun()
 
@@ -86,100 +77,117 @@ st.markdown(f"<h1 class='main-title'>◈ {t('sys_title')}</h1>", unsafe_allow_ht
 st.markdown(f"<p class='main-subtitle'>{t('sys_subtitle')}</p>", unsafe_allow_html=True)
 st.markdown("---")
 
+
+def _need_data() -> bool:
+    if not has_data():
+        st.warning(t("no_data"))
+        return True
+    return False
+
+
+def _coming_soon(en: str, ar: str):
+    st.info(tr(en, ar))
+    st.caption(tr("See ROADMAP.md in the repository for the full development plan.",
+                  "راجع ملف ROADMAP.md في المستودع للاطلاع على خطة التطوير الكاملة."))
+
+
 # ------------------------------------------
 # Wings Routing
 # ------------------------------------------
-if page == t("home"):
+if page == "home":
     st.info(f"👈 {t('welcome_msg')}")
+    cards = [
+        ("📥", tr("Data Hub", "مركز البيانات"),
+         tr("Upload your files or pull World Bank & FRED data, then merge them in the Data Basket.",
+            "ارفع ملفاتك أو اجلب بيانات البنك الدولي وFRED، ثم ادمجها في سلة البيانات.")),
+        ("📋", tr("Descriptive Statistics", "الإحصاء الوصفي"),
+         tr("Full summary tables, normality tests, correlation matrices, growth rates — with automatic interpretation.",
+            "جداول وصفية كاملة، واختبارات الطبيعية، ومصفوفات الارتباط، ومعدلات النمو، مع قراءة تحليلية تلقائية.")),
+        ("📐", tr("Econometrics Lab", "مختبر الاقتصاد القياسي"),
+         tr("Regression, panel data, time series and causal inference (in development).",
+            "الانحدار، وبيانات البانل، والسلاسل الزمنية، والاستدلال السببي (قيد التطوير).")),
+        ("⚙️", tr("Operations Research", "بحوث العمليات"),
+         tr("Linear programming, transportation, efficiency (DEA) — in development.",
+            "البرمجة الخطية، ومسائل النقل، وتحليل الكفاءة (DEA) — قيد التطوير.")),
+        ("📄", tr("Report Studio + AI", "استوديو التقارير + الذكاء الاصطناعي"),
+         tr("AI-assisted academic reports in Arabic & English (in development).",
+            "تقارير أكاديمية بالعربية والإنجليزية بمساعدة الذكاء الاصطناعي (قيد التطوير).")),
+        ("🎓", tr("Academy", "الأكاديمية"),
+         tr("Courses, guided exercises and certificates in statistics & econometrics (planned).",
+            "دورات وتمارين موجّهة وشهادات في الإحصاء والاقتصاد القياسي (مخطط لها).")),
+    ]
+    for row in range(0, len(cards), 3):
+        cols = st.columns(3)
+        for col, (icon, title, body) in zip(cols, cards[row:row + 3]):
+            with col:
+                st.markdown(f"#### {icon} {title}")
+                st.write(body)
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("#### 📥 Data Hub")
-        st.write("Upload your files or fetch international data." if get_current_language() == "en"
-                 else "ارفع ملفاتك أو اجلب بيانات دولية.")
-    with col2:
-        st.markdown("#### 📊 Analytics")
-        st.write("Descriptive, Inferential, Econometrics & Operations Research." if get_current_language() == "en"
-                 else "إحصاء وصفي واستدلالي، اقتصاد قياسي، وبحوث عمليات.")
-    with col3:
-        st.markdown("#### 📄 Reports")
-        st.write("Generate professional reports with AI assistance." if get_current_language() == "en"
-                 else "توليد تقارير احترافية بمساعدة الذكاء الاصطناعي.")
+    st.markdown("---")
+    st.markdown("#### " + tr("🚀 Try it now", "🚀 جرّب المنصة الآن"))
+    st.write(tr("Load a synthetic demo dataset (climate & crop yields in 8 Egyptian desert governorates, 2000–2023) "
+                "and explore the Descriptive Statistics wing.",
+                "حمّل بيانات تجريبية مُولَّدة (المناخ وإنتاجية المحاصيل في 8 محافظات صحراوية مصرية، 2000–2023) "
+                "واستكشف جناح الإحصاء الوصفي."))
+    if st.button(tr("Load demo dataset", "تحميل البيانات التجريبية"), key="home_demo"):
+        from data.samples import climate_crop_demo
+        set_memory(climate_crop_demo(), source="demo (synthetic)", name="Demo – climate & crops (synthetic)")
+        st.success(tr("Demo data loaded. Open 'Descriptive Statistics' from the sidebar.",
+                      "تم تحميل البيانات التجريبية. افتح «الإحصاء الوصفي» من القائمة الجانبية."))
+    st.caption(tr("⚠️ Demo data is simulated for training purposes and must not be cited as real statistics.",
+                  "⚠️ البيانات التجريبية مُحاكاة لأغراض التدريب، ولا يجوز الاستشهاد بها كإحصاءات حقيقية."))
 
-elif page == t("data_hub"):
+elif page == "data_hub":
+    from data.upload import render_upload_section
+    from data.global_data import render_global_data
+    from data.basket import render_basket
+
     st.header(t("data_hub"))
-
-    # Tabs for future expansion (My Data / Global Data / Data Basket)
     tab1, tab2, tab3 = st.tabs([
-        "📁 My Data" if get_current_language() == "en" else "📁 بياناتي",
-        "🌍 Global Data" if get_current_language() == "en" else "🌍 بيانات دولية",
-        "🛒 Data Basket" if get_current_language() == "en" else "🛒 سلة البيانات"
+        tr("📁 My Data", "📁 بياناتي"),
+        tr("🌍 Global Data", "🌍 بيانات دولية"),
+        tr("🛒 Data Basket", "🛒 سلة البيانات"),
     ])
-
     with tab1:
         render_upload_section()
-
     with tab2:
-        st.info(
-            "Global Data section will be implemented next. You will be able to select indicators, countries, and years from international sources."
-            if get_current_language() == "en" else
-            "قسم البيانات الدولية سيتم تنفيذه لاحقاً. ستتمكن من اختيار المؤشرات والدول والسنوات من المصادر الدولية."
-        )
-
+        render_global_data()
     with tab3:
-        st.info(
-            "Data Basket will allow combining your uploaded data with international sources."
-            if get_current_language() == "en" else
-            "سلة البيانات ستتيح دمج بياناتك المرفوعة مع المصادر الدولية."
-        )
+        render_basket()
 
-elif page == t("descriptive"):
+elif page == "descriptive":
     st.header(t("descriptive"))
-    if not has_data():
-        st.warning(t("no_data"))
-    else:
-        st.success("Data is available in memory. Descriptive tools will be implemented here."
-                   if get_current_language() == "en" else
-                   "البيانات متوفرة في الذاكرة. سيتم تنفيذ أدوات الإحصاء الوصفي هنا.")
+    if not _need_data():
+        from analytics.descriptive_ui import render_descriptive
+        render_descriptive()
 
-elif page == t("inferential"):
+elif page == "inferential":
     st.header(t("inferential"))
-    if not has_data():
-        st.warning(t("no_data"))
-    else:
-        st.info("Inferential statistics module coming soon."
-                if get_current_language() == "en" else
-                "وحدة الإحصاء الاستدلالي قريباً.")
+    _coming_soon("Hypothesis tests (t, ANOVA, non-parametric), effect sizes and power analysis — next release.",
+                 "اختبارات الفروض (t، وتحليل التباين، والاختبارات اللامعلمية)، وحجم الأثر، وتحليل القوة — في الإصدار القادم.")
 
-elif page == t("econometrics"):
+elif page == "econometrics":
     st.header(t("econometrics"))
-    if not has_data():
-        st.warning(t("no_data"))
-    else:
-        st.info("Econometrics Lab coming soon."
-                if get_current_language() == "en" else
-                "مختبر الاقتصاد القياسي قريباً.")
+    _coming_soon("OLS with full diagnostics, panel models (FE/RE, Hausman), ARDL & cointegration, VAR — in development.",
+                 "انحدار المربعات الصغرى مع التشخيص الكامل، ونماذج البانل (الأثر الثابت والعشوائي واختبار هاوسمان)، "
+                 "وARDL والتكامل المشترك، وVAR — قيد التطوير.")
 
-elif page == t("operations"):
+elif page == "operations":
     st.header(t("operations"))
-    st.info("Operations Research module coming soon."
-            if get_current_language() == "en" else
-            "وحدة بحوث العمليات قريباً.")
+    _coming_soon("Linear & integer programming, transportation/assignment, DEA efficiency — in development.",
+                 "البرمجة الخطية والصحيحة، ومسائل النقل والتخصيص، وتحليل كفاءة DEA — قيد التطوير.")
 
-elif page == t("reports"):
+elif page == "reports":
     st.header(t("reports"))
-    st.info("Report Studio coming soon."
-            if get_current_language() == "en" else
-            "استوديو التقارير قريباً.")
+    _coming_soon("Report Studio with AI writing assistant (Word/PDF export, APA tables) — in development.",
+                 "استوديو التقارير مع مساعد كتابة بالذكاء الاصطناعي (تصدير Word وPDF وجداول بنمط APA) — قيد التطوير.")
 
-elif page == t("academy"):
+elif page == "academy":
     st.header(t("academy"))
-    st.info("Academy module coming soon."
-            if get_current_language() == "en" else
-            "وحدة الأكاديمية قريباً.")
+    _coming_soon("Courses, training paths and certificates — planned.",
+                 "الدورات والمسارات التدريبية والشهادات — مخطط لها.")
 
-elif page == t("community"):
+elif page == "community":
     st.header(t("community"))
-    st.info("Community space coming soon."
-            if get_current_language() == "en" else
-            "مساحة المجتمع قريباً.")
+    _coming_soon("Research community, Q&A and collaboration space — planned.",
+                 "مجتمع الباحثين، والأسئلة والأجوبة، ومساحة التعاون — مخطط لها.")

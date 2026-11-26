@@ -2,85 +2,86 @@
 # Aetheris Research - Data Upload Module
 # ==========================================
 
-import streamlit as st
 import pandas as pd
-from io import BytesIO
-from core.memory import set_memory, has_data, get_memory
-from core.utils import t, get_current_language
+import streamlit as st
+
+from core.memory import set_memory, has_data
+from core.utils import tr
+
+
+def _read_file(uploaded_file, sheet=None) -> pd.DataFrame:
+    name = uploaded_file.name.lower()
+    if name.endswith(".csv"):
+        return pd.read_csv(uploaded_file)
+    if name.endswith(".tsv"):
+        return pd.read_csv(uploaded_file, sep="\t")
+    if name.endswith(".json"):
+        return pd.read_json(uploaded_file)
+    if name.endswith((".xlsx", ".xls")):
+        return pd.read_excel(uploaded_file, sheet_name=sheet or 0)
+    raise ValueError("Unsupported file format")
 
 
 def render_upload_section():
     """Render the My Data upload interface."""
-    lang = get_current_language()
-
-    st.subheader("📁 " + ("My Data - Upload Files" if lang == "en" else "بياناتي - رفع الملفات"))
-
-    st.markdown(
-        "Upload your dataset (CSV or Excel). The data will be stored in Smart Memory and become available for all analysis wings."
-        if lang == "en" else
-        "ارفع مجموعة بياناتك (CSV أو Excel). سيتم حفظ البيانات في الذاكرة الذكية وتصبح متاحة لجميع أجنحة التحليل."
-    )
+    st.subheader("📁 " + tr("My Data - Upload Files", "بياناتي - رفع الملفات"))
+    st.markdown(tr(
+        "Upload your dataset. It is stored in Smart Memory and becomes available to all analysis wings. "
+        "You can upload several files — each one is kept in the Data Basket.",
+        "ارفع مجموعة بياناتك. ستُحفظ في الذاكرة الذكية وتصبح متاحة لجميع أجنحة التحليل. "
+        "يمكنك رفع عدة ملفات، وتُحفظ كلها في سلة البيانات."))
 
     uploaded_file = st.file_uploader(
-        label=("Choose a file" if lang == "en" else "اختر ملفاً"),
-        type=["csv", "xlsx", "xls"],
+        label=tr("Choose a file", "اختر ملفاً"),
+        type=["csv", "xlsx", "xls", "tsv", "json"],
         accept_multiple_files=False,
-        help="Supported formats: CSV, Excel (.xlsx, .xls)"
+        help="CSV, Excel (.xlsx, .xls), TSV, JSON",
     )
+    if uploaded_file is None:
+        return
 
-    if uploaded_file is not None:
+    sheet = None
+    if uploaded_file.name.lower().endswith((".xlsx", ".xls")):
         try:
-            # Read the file based on extension
-            file_name = uploaded_file.name.lower()
+            sheets = pd.ExcelFile(uploaded_file).sheet_names
+        except Exception:  # noqa: BLE001
+            sheets = []
+        if len(sheets) > 1:
+            sheet = st.selectbox(tr("Sheet", "ورقة العمل"), sheets, key="up_sheet")
+        uploaded_file.seek(0)
 
-            if file_name.endswith(".csv"):
-                df = pd.read_csv(uploaded_file)
-            elif file_name.endswith((".xlsx", ".xls")):
-                df = pd.read_excel(uploaded_file)
-            else:
-                st.error("Unsupported file format." if lang == "en" else "صيغة الملف غير مدعومة.")
-                return
+    # Only (re)store when a new file or sheet is chosen, so the active dataset
+    # chosen in the Data Basket is not overwritten on every rerun.
+    signature = (uploaded_file.name, uploaded_file.size, sheet)
+    try:
+        df = _read_file(uploaded_file, sheet)
+    except Exception as e:  # noqa: BLE001
+        st.error(tr(f"Error reading the file: {e}", f"حدث خطأ أثناء قراءة الملف: {e}"))
+        return
+    if df.empty:
+        st.warning(tr("The uploaded file is empty.", "الملف المرفوع فارغ."))
+        return
 
-            # Basic validation
-            if df.empty:
-                st.warning("The uploaded file is empty." if lang == "en" else "الملف المرفوع فارغ.")
-                return
+    name = uploaded_file.name if not sheet else f"{uploaded_file.name} [{sheet}]"
+    if st.session_state.get("up_signature") != signature:
+        set_memory(df, source=f"upload:{uploaded_file.name}", name=name)
+        st.session_state["up_signature"] = signature
 
-            # Store in Smart Memory
-            set_memory(df, source=f"upload:{uploaded_file.name}")
+    st.success(tr(f"File loaded: {df.shape[0]} rows × {df.shape[1]} columns",
+                  f"تم تحميل الملف: {df.shape[0]} صف × {df.shape[1]} عمود"))
+    st.markdown("### " + tr("Data Preview", "معاينة البيانات"))
+    st.dataframe(df.head(20), width="stretch")
 
-            st.success(
-                f"File uploaded successfully! Shape: {df.shape[0]} rows × {df.shape[1]} columns"
-                if lang == "en" else
-                f"تم رفع الملف بنجاح! الأبعاد: {df.shape[0]} صف × {df.shape[1]} عمود"
-            )
+    with st.expander(tr("Dataset Info", "معلومات عن البيانات")):
+        info = pd.DataFrame({
+            tr("Column", "العمود"): df.columns,
+            tr("Type", "النوع"): df.dtypes.astype(str).values,
+            tr("Non-missing", "غير مفقود"): df.notna().sum().values,
+            tr("Missing", "مفقود"): df.isna().sum().values,
+            tr("Unique values", "قيم فريدة"): df.nunique().values,
+        })
+        st.dataframe(info, width="stretch", hide_index=True)
 
-            # Preview
-            st.markdown("### " + ("Data Preview" if lang == "en" else "معاينة البيانات"))
-            st.dataframe(df.head(20), use_container_width=True)
-
-            # Quick info
-            with st.expander("Dataset Info" if lang == "en" else "معلومات عن البيانات"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.write("**Columns:**" if lang == "en" else "**الأعمدة:**")
-                    st.write(list(df.columns))
-                with col2:
-                    st.write("**Data Types:**" if lang == "en" else "**أنواع البيانات:**")
-                    st.write(df.dtypes.astype(str).to_dict())
-
-        except Exception as e:
-            st.error(
-                f"Error reading the file: {str(e)}"
-                if lang == "en" else
-                f"حدث خطأ أثناء قراءة الملف: {str(e)}"
-            )
-
-    # Show current memory status if data exists
     if has_data():
-        st.markdown("---")
-        st.info(
-            "Data is currently loaded in Smart Memory and ready for analysis."
-            if lang == "en" else
-            "البيانات محمّلة حالياً في الذاكرة الذكية وجاهزة للتحليل."
-        )
+        st.info(tr("Data is loaded in Smart Memory and ready for analysis.",
+                   "البيانات محمّلة في الذاكرة الذكية وجاهزة للتحليل."))

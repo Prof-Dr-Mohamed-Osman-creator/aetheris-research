@@ -3,7 +3,7 @@
 # ==========================================
 
 SYSTEM_NAME = "Aetheris Research"
-SYSTEM_VERSION = "1.0.0-alpha"
+SYSTEM_VERSION = "1.1.0-alpha"
 SYSTEM_TAGLINE_EN = "Global Research Platform for Economists & Decision-Makers"
 SYSTEM_TAGLINE_AR = "منصة بحثية عالمية للاقتصاديين وصناع القرار"
 
