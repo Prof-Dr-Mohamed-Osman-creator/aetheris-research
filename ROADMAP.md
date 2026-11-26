@@ -5,6 +5,8 @@
 > **البيانات ← التحليل ← التفسير الأكاديمي ← التقرير ← التدريب**، مع مساعد ذكاء اصطناعي يعتمد على النتائج
 > المحسوبة فعلاً ولا يختلق الأرقام.
 
+> 📚 **The full list of every model, test and chart to be delivered — and the release order — is in [docs/MODEL_CATALOG.md](docs/MODEL_CATALOG.md).** That catalogue is the binding development reference.
+
 ---
 
 ## 1. Positioning — why researchers will choose Aetheris
