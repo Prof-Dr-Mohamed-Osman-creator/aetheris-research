@@ -110,7 +110,7 @@ def _assumptions(arrays, names, alpha):
     return a
 
 
-def _means_plot(names, arrays, title, letters=None):
+def _means_plot(names, arrays, title, letters=None, key: str = "means"):
     """Mean ± 95% CI with raw points — the figure reviewers expect next to ANOVA/t-test results."""
     fig = go.Figure()
     pal = ch.PALETTES["academic"]
@@ -128,7 +128,7 @@ def _means_plot(names, arrays, title, letters=None):
                                yshift=16, font=dict(size=15))
     fig.update_xaxes(tickvals=list(range(len(names))), ticktext=names)
     ch.style_academic(fig, title=title, y_title=None, height=440, legend="none", rtl=is_ar())
-    st.plotly_chart(fig, config=ch.plotly_export_config("png", 3, "means_ci"))
+    st.plotly_chart(fig, config=ch.plotly_export_config("png", 3, "means_ci"), key=f"{key}_means_chart")
     st.caption(tr("◆ mean with 95% confidence interval; dots = observations.",
                   "◆ المتوسط مع فترة الثقة 95%؛ والنقاط هي المشاهدات الفعلية."))
 
@@ -273,9 +273,9 @@ def _advisor_tab(df):
               "kruskal": lambda: inf.posthoc_dunn(arrays, names, "holm")}[key]()
         st.dataframe(ph.round(4), width="stretch", hide_index=True)
         letters = inf.compact_letters(ph, names, [np.median(x) if key == "kruskal" else x.mean() for x in arrays], alpha)
-        _means_plot(names, arrays, f"{y} — {g}", letters)
+        _means_plot(names, arrays, f"{y} — {g}", letters, key="adv_ph")
     else:
-        _means_plot(names, arrays, f"{y} — {g}")
+        _means_plot(names, arrays, f"{y} — {g}", key="adv")
 
 
 def _advisor_verdict(en, ar, a):
@@ -370,7 +370,7 @@ def _two_groups_tab(df):
                    "student": lambda: inf.t_independent(x1, x2, True, alt),
                    "mwu": lambda: inf.mann_whitney(x1, x2, alt), "ks": lambda: inf.ks_two_sample(x1, x2)}[test]()
             show_result(res, alpha, "tg", context=f"{names[0]} vs {names[1]}")
-        _means_plot(names, [x1, x2], f"{y} — {g}")
+        _means_plot(names, [x1, x2], f"{y} — {g}", key="tg_ind")
         return
 
     num, cat = ds.analysis_columns(df), ds.categorical_columns(df)
@@ -397,7 +397,7 @@ def _two_groups_tab(df):
            "wilcoxon": lambda: inf.wilcoxon_paired(pair[a], pair[b], alt),
            "sign": lambda: inf.sign_test(pair[a] - pair[b], 0.0, alt)}[test]()
     show_result(res, alpha, "tg", context=f"{a} vs {b}")
-    _means_plot([a, b], [pair[a].to_numpy(), pair[b].to_numpy()], f"{a} vs {b}")
+    _means_plot([a, b], [pair[a].to_numpy(), pair[b].to_numpy()], f"{a} vs {b}", key="tg_paired")
 
 
 # ==========================================================
@@ -450,7 +450,7 @@ def _k_groups_tab(df):
         st.markdown(tr("**Compact letter display** (groups sharing a letter do not differ significantly): ",
                        "**الحروف الدالة** (المجموعات التي تشترك في حرف لا تختلف معنوياً): ")
                     + " · ".join(f"{n}: **{letters[n]}**" for n in names))
-        _means_plot(names, arrays, f"{y} — {g}", letters)
+        _means_plot(names, arrays, f"{y} — {g}", letters, key="kg_oneway")
         return
 
     if design == "twoway":
@@ -486,7 +486,7 @@ def _k_groups_tab(df):
         fig, _ = ch.build_chart("line", means.assign(**{fa: means[fa].astype(str)}), x=fa, y=y, color=fb, agg="mean")
         ch.style_academic(fig, title=tr("Interaction plot (cell means)", "رسم التفاعل (متوسطات الخلايا)"),
                           x_title=fa, y_title=y, height=430, rtl=is_ar())
-        st.plotly_chart(fig, config=ch.plotly_export_config("png", 3, "interaction_plot"))
+        st.plotly_chart(fig, config=ch.plotly_export_config("png", 3, "interaction_plot"), key="kg2_interaction_chart")
         return
 
     # repeated measures
@@ -506,7 +506,7 @@ def _k_groups_tab(df):
                     else tr("Friedman (non-parametric)", "فريدمان (لامعلمي)"))
     show_result(inf.rm_anova(wide) if test == "rm" else inf.friedman(wide), alpha, "kg_rm")
     clean = wide.apply(pd.to_numeric, errors="coerce").dropna()
-    _means_plot(cols, [clean[c].to_numpy() for c in cols], tr("Means across conditions", "المتوسطات عبر الحالات"))
+    _means_plot(cols, [clean[c].to_numpy() for c in cols], tr("Means across conditions", "المتوسطات عبر الحالات"), key="kg_rm")
 
 
 # ==========================================================
@@ -541,7 +541,7 @@ def _association_tab(df):
         show_result(res, alpha, "as", context=f"{x} — {y}")
         fig, _ = ch.build_chart("scatter", df, x=x, y=y)
         ch.style_academic(fig, title=f"{y} vs {x}", x_title=x, y_title=y, height=420, legend="none", rtl=is_ar())
-        st.plotly_chart(fig, config=ch.plotly_export_config("png", 3, "scatter"))
+        st.plotly_chart(fig, config=ch.plotly_export_config("png", 3, "scatter"), key="as_scatter_chart")
         return
     if len(cat) < 2:
         st.info(tr("Need two categorical variables.", "يلزم متغيران نوعيان."))
@@ -720,7 +720,7 @@ def _power_tab():
         ch.style_academic(fig, title=tr("Power curves by effect size", "منحنيات القوة حسب حجم الأثر"),
                           x_title=tr("Sample size", "حجم العينة") + f" ({unit})", y_title=tr("Power", "القوة"),
                           height=420, rtl=is_ar())
-        st.plotly_chart(fig, config=ch.plotly_export_config("png", 3, "power_curve"))
+        st.plotly_chart(fig, config=ch.plotly_export_config("png", 3, "power_curve"), key="pw_power_curve")
     st.caption(tr("Exact non-central t / F / χ² computations (results match G*Power).",
                   "الحسابات دقيقة باستخدام توزيعات t وF وكاي² غير المركزية، والنتائج مطابقة لبرنامج G*Power."))
 
