@@ -103,6 +103,9 @@ if page == "home":
         ("📋", tr("Descriptive Statistics", "الإحصاء الوصفي"),
          tr("Full summary tables, normality tests, correlation matrices, growth rates — with automatic interpretation.",
             "جداول وصفية كاملة، واختبارات الطبيعية، ومصفوفات الارتباط، ومعدلات النمو، مع قراءة تحليلية تلقائية.")),
+        ("🧪", tr("Inferential Statistics", "الإحصاء الاستدلالي"),
+         tr("Test Advisor, 30+ parametric & non-parametric tests, post-hoc, effect sizes, power & sample size.",
+            "مستشار الاختبارات، وأكثر من 30 اختباراً معلمياً ولامعلمياً، والمقارنات البعدية، وأحجام الأثر، والقوة وحجم العينة.")),
         ("📐", tr("Econometrics Lab", "مختبر الاقتصاد القياسي"),
          tr("Regression, panel data, time series and causal inference (in development).",
             "الانحدار، وبيانات البانل، والسلاسل الزمنية، والاستدلال السببي (قيد التطوير).")),
@@ -163,8 +166,8 @@ elif page == "descriptive":
 
 elif page == "inferential":
     st.header(t("inferential"))
-    _coming_soon("Hypothesis tests (t, ANOVA, non-parametric), effect sizes and power analysis — next release.",
-                 "اختبارات الفروض (t، وتحليل التباين، والاختبارات اللامعلمية)، وحجم الأثر، وتحليل القوة — في الإصدار القادم.")
+    from analytics.inferential_ui import render_inferential
+    render_inferential()
 
 elif page == "econometrics":
     st.header(t("econometrics"))

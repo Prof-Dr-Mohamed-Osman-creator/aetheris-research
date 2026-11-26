@@ -19,6 +19,13 @@ def numeric_columns(df: pd.DataFrame) -> list[str]:
     return [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c]) and not pd.api.types.is_bool_dtype(df[c])]
 
 
+def analysis_columns(df: pd.DataFrame) -> list[str]:
+    """Numeric columns with time-like columns (year, date) moved to the end — better default choices."""
+    num = numeric_columns(df)
+    time = set(time_columns(df))
+    return [c for c in num if c not in time] + [c for c in num if c in time]
+
+
 def categorical_columns(df: pd.DataFrame, max_unique: int = 50) -> list[str]:
     cats = []
     for c in df.columns:

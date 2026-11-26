@@ -17,12 +17,13 @@ A complete research workflow inside one integrated environment:
 
 ## Current Status
 
-- Version: `1.2.0-alpha`
+- Version: `1.3.0-alpha`
 - Live: https://aetheris-research.streamlit.app
 - Languages: English + Arabic (full RTL support)
 - ✅ Data Hub: file upload, World Bank WDI, FRED, Data Basket (multi-dataset memory + merge)
 - ✅ Descriptive Statistics wing: 40 measures in 6 groups (central tendency, dispersion, shape, position, concentration), Gini & Lorenz, automatic academic interpretation, CSV/Excel export
 - ✅ Academic Chart Builder: 17 chart types, journal styling, figure numbering & source notes, 300-dpi PNG / SVG / HTML export
+- ✅ Inferential Statistics wing: Test Advisor, 30+ parametric & non-parametric tests, post-hoc (Tukey, Games-Howell, Dunn) with compact letters, two-way & repeated-measures ANOVA, effect sizes, APA reporting, bootstrap CIs, power & sample size (G*Power-validated), survey sample size
 - Strategic plan: see [ROADMAP.md](ROADMAP.md)
 
 ## Project Structure
@@ -46,6 +47,9 @@ aetheris-research/
 ├── analytics/
 │   ├── descriptive.py         # Descriptive statistics engine (pure, tested)
 │   ├── descriptive_ui.py      # Descriptive Statistics wing
+│   ├── inferential.py         # Hypothesis tests, post-hoc, effect sizes, CIs (pure, tested)
+│   ├── inferential_ui.py      # Inferential Statistics wing + Test Advisor
+│   ├── power.py               # Power analysis & sample size
 │   ├── charts.py              # Academic chart engine (17 chart types)
 │   └── chart_builder_ui.py    # Chart Builder
 ├── tests/                     # Unit tests (pytest)
@@ -73,7 +77,7 @@ python -m pytest -q
 1. ✅ Core structure + bilingual support + Smart Memory
 2. ✅ Data Hub (Upload + World Bank + FRED + Data Basket)
 3. ✅ Descriptive Statistics
-4. ⏳ Inferential Statistics + Test Advisor
+4. ✅ Inferential Statistics + Test Advisor
 5. ⏳ Econometrics Lab (OLS diagnostics, ARDL, panel, VAR, SFA…)
 6. ⏳ Operations Research (LP, DEA, transportation…)
 7. ⏳ Report Studio + grounded AI assistant

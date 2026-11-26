@@ -49,7 +49,7 @@ SPECIAL_LABELS = {
 
 
 def _options(df: pd.DataFrame, kind: str) -> list[str]:
-    num, cat, time = ds.numeric_columns(df), ds.categorical_columns(df), ds.time_columns(df)
+    num, cat, time = ds.analysis_columns(df), ds.categorical_columns(df), ds.time_columns(df)
     if kind == "num":
         return num
     if kind == "cat":

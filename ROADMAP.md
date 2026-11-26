@@ -37,11 +37,12 @@ Modular structure, bilingual UI, Smart Memory, file upload.
 - Concentration tab: Lorenz curves and Gini by group.
 - Chart Builder: 17 chart types, academic styling, grayscale print mode, figure numbering, source notes, 300-dpi PNG / SVG / interactive HTML export.
 
-### Phase 3 — Inferential Statistics
+### ✅ Phase 3 — Inferential Statistics (v1.3)
 - One- & two-sample t-tests, paired t, one-/two-way ANOVA with Tukey/Bonferroni post-hoc.
 - Non-parametric: Mann-Whitney, Wilcoxon, Kruskal-Wallis, Friedman, Fisher exact.
 - Effect sizes (Cohen's d, η², Cramér's V) and power / sample-size calculator.
 - **Test Advisor:** checks assumptions (normality, homogeneity of variance via Levene) and recommends the correct test.
+- Delivered additionally: Welch & two-way (Type II/III) & repeated-measures ANOVA (Greenhouse-Geisser), Games-Howell, Dunn, compact letter display, McNemar, Cochran's Q, partial correlation, χ² with adjusted residuals / Fisher / G², BCa bootstrap CIs, survey sample size (Cochran, Yamane), APA 7 result strings.
 
 ### Phase 4 — Econometrics Lab (flagship)
 - **Cross-section:** OLS with full diagnostics (Breusch-Pagan/White, VIF, RESET, Jarque-Bera), robust & clustered SEs, Logit/Probit with marginal effects, quantile regression, IV/2SLS.

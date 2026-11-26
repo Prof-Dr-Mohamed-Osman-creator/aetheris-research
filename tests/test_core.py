@@ -143,3 +143,8 @@ def test_summary_groups_and_brief(demo):
     assert list(pt.columns)[0] == "P10" and pt.shape[1] == 9
     gg = ds.gini_by_group(demo, "production_t", "crop")
     assert len(gg) == 4 and gg["Gini"].between(0, 1).all()
+
+
+def test_analysis_columns_puts_time_last(demo):
+    cols = ds.analysis_columns(demo)
+    assert cols[-1] == "year" and cols[0] != "year"
