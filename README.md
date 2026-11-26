@@ -17,11 +17,12 @@ A complete research workflow inside one integrated environment:
 
 ## Current Status
 
-- Version: `1.1.0-alpha`
+- Version: `1.2.0-alpha`
 - Live: https://aetheris-research.streamlit.app
 - Languages: English + Arabic (full RTL support)
 - ✅ Data Hub: file upload, World Bank WDI, FRED, Data Basket (multi-dataset memory + merge)
-- ✅ Descriptive Statistics wing with automatic academic interpretation
+- ✅ Descriptive Statistics wing: 40 measures in 6 groups (central tendency, dispersion, shape, position, concentration), Gini & Lorenz, automatic academic interpretation, CSV/Excel export
+- ✅ Academic Chart Builder: 17 chart types, journal styling, figure numbering & source notes, 300-dpi PNG / SVG / HTML export
 - Strategic plan: see [ROADMAP.md](ROADMAP.md)
 
 ## Project Structure
@@ -44,7 +45,9 @@ aetheris-research/
 │   └── samples.py             # Synthetic demo dataset
 ├── analytics/
 │   ├── descriptive.py         # Descriptive statistics engine (pure, tested)
-│   └── descriptive_ui.py      # Descriptive Statistics wing
+│   ├── descriptive_ui.py      # Descriptive Statistics wing
+│   ├── charts.py              # Academic chart engine (17 chart types)
+│   └── chart_builder_ui.py    # Chart Builder
 ├── tests/                     # Unit tests (pytest)
 ├── reports/  academy/  community/
 ├── ROADMAP.md

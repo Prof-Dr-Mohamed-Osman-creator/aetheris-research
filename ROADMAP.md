@@ -32,6 +32,11 @@ Modular structure, bilingual UI, Smart Memory, file upload.
 - **Descriptive Statistics wing:** full summary table (CI, CV, skewness, kurtosis, outliers), 4 normality tests with histogram + Q-Q plot, Pearson/Spearman/Kendall matrices with significance stars, frequency tables & χ² / Cramér's V, group comparison, trend growth rates (log-linear) and instability index — every result with automatic Arabic/English interpretation and CSV export.
 - Synthetic demo dataset, RTL layout for Arabic, unit tests.
 
+### ✅ Phase 2.5 — Complete descriptive toolkit + Chart Builder
+- 40 measures in 6 groups (incl. geometric/harmonic/trimmed means, MAD, quartile dispersion, percentiles, Gini, Palma ratio), brief journal view, Excel export.
+- Concentration tab: Lorenz curves and Gini by group.
+- Chart Builder: 17 chart types, academic styling, grayscale print mode, figure numbering, source notes, 300-dpi PNG / SVG / interactive HTML export.
+
 ### Phase 3 — Inferential Statistics
 - One- & two-sample t-tests, paired t, one-/two-way ANOVA with Tukey/Bonferroni post-hoc.
 - Non-parametric: Mann-Whitney, Wilcoxon, Kruskal-Wallis, Friedman, Fisher exact.

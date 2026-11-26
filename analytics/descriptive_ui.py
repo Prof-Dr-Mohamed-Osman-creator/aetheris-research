@@ -11,9 +11,11 @@ import plotly.graph_objects as go
 import streamlit as st
 from scipy import stats
 
+from analytics import charts
 from analytics import descriptive as ds
+from analytics.chart_builder_ui import render_chart_builder
 from core.memory import get_memory, active_name
-from core.utils import tr, is_ar, insight, csv_download
+from core.utils import tr, is_ar, insight, csv_download, excel_download
 
 PALETTE = px.colors.qualitative.Safe
 
@@ -40,6 +42,8 @@ def render_descriptive():
         tr("🧮 Categorical", "🧮 المتغيرات النوعية"),
         tr("👥 Group comparison", "👥 المقارنة بين المجموعات"),
         tr("⏱ Trends & growth", "⏱ الاتجاه العام ومعدلات النمو"),
+        tr("⚖️ Concentration", "⚖️ التركز وعدالة التوزيع"),
+        tr("🎨 Chart Builder", "🎨 منشئ الرسوم البيانية"),
     ])
     with tabs[0]:
         _summary_tab(df, num_cols, lang)
@@ -53,15 +57,32 @@ def render_descriptive():
         _group_tab(df, num_cols, cat_cols)
     with tabs[5]:
         _trend_tab(df, num_cols, cat_cols, time_cols)
+    with tabs[6]:
+        _concentration_tab(df, num_cols, cat_cols, lang)
+    with tabs[7]:
+        render_chart_builder(df)
 
 
 # ------------------------------------------
 def _summary_tab(df, num_cols, lang):
+    ar = lang == "ar"
     # sensible default: exclude year/id-like columns
     default = [c for c in num_cols if c not in ds.time_columns(df)][:8] or num_cols[:8]
     cols = st.multiselect(tr("Variables", "المتغيرات"), num_cols, default=default, key="ds_sum_cols")
     if not cols:
         return
+
+    view = st.radio(tr("View", "طريقة العرض"), ["brief", "full", "custom"], horizontal=True, key="ds_view",
+                    format_func=lambda v: {"brief": tr("Journal table (brief)", "جدول النشر (مختصر)"),
+                                           "full": tr("All measures", "جميع المقاييس"),
+                                           "custom": tr("Choose groups", "اختيار مجموعات")}[v])
+    groups = list(ds.MEASURE_GROUPS.keys())
+    if view == "custom":
+        groups = st.multiselect(tr("Measure groups", "مجموعات المقاييس"), list(ds.MEASURE_GROUPS.keys()),
+                                default=["central", "dispersion"], key="ds_groups",
+                                format_func=lambda g: ds.GROUP_LABELS[g][1 if ar else 0])
+        if not groups:
+            return
     c1, c2 = st.columns(2)
     with c1:
         decimals = st.slider(tr("Decimals", "عدد المنازل العشرية"), 0, 6, 3, key="ds_dec")
@@ -69,14 +90,62 @@ def _summary_tab(df, num_cols, lang):
         layout = st.radio(tr("Layout", "شكل الجدول"), ["rows", "cols"], horizontal=True, key="ds_layout",
                           format_func=lambda x: tr("Variables as rows", "المتغيرات صفوف") if x == "rows"
                           else tr("Variables as columns (SPSS style)", "المتغيرات أعمدة (نمط SPSS)"))
-    table = ds.summary_table(df, cols)
-    shown = table if layout == "rows" else table.T
-    st.dataframe(shown.astype(float).round(decimals), width="stretch")
-    csv_download(table.round(decimals).reset_index(), "descriptive_statistics.csv", key="ds_sum_dl")
+
+    full = ds.summary_table(df, cols)  # always computed: used for interpretation
+    table = ds.summary_table(df, cols, groups=groups, brief=(view == "brief")).astype(float).round(decimals)
+    labelled = table.rename(columns=lambda m: ds.measure_label(m, lang))
+    labelled.index.name = tr("Variable", "المتغير")
+
+    if view == "brief":
+        st.dataframe(labelled if layout == "rows" else labelled.T, width="stretch")
+    else:
+        # one sub-table per group, in the classical textbook order
+        for g in [g for g in ds.MEASURE_GROUPS if g in groups]:
+            sub_cols = [ds.measure_label(m, lang) for m in ds.MEASURE_GROUPS[g]
+                        if ds.measure_label(m, lang) in labelled.columns]
+            if not sub_cols:
+                continue
+            st.markdown(f"**{ds.GROUP_LABELS[g][1 if ar else 0]}**")
+            sub = labelled[sub_cols]
+            st.dataframe(sub if layout == "rows" else sub.T, width="stretch")
+        if "concentration" in groups:
+            st.caption(tr("Concentration measures are meaningful for non-negative quantities "
+                          "(income, production, area, holdings).",
+                          "مقاييس التركز ذات معنى للكميات غير السالبة فقط (الدخل، والإنتاج، والمساحة، والحيازات)."))
+
+    out = labelled.reset_index()
+    c1, c2 = st.columns(2)
+    with c1:
+        csv_download(out, "descriptive_statistics.csv", key="ds_sum_dl")
+    with c2:
+        excel_download({tr("Descriptive", "وصفي"): out}, "descriptive_statistics.xlsx", key="ds_sum_xl")
+
+    with st.expander(tr("📐 Percentiles & deciles", "📐 المئينات والعشيرات")):
+        kind = st.radio(tr("Type", "النوع"), ["quartiles", "deciles", "ventiles"], horizontal=True, key="ds_pct",
+                        format_func=lambda k: {"quartiles": tr("Quartiles", "الربيعيات"),
+                                               "deciles": tr("Deciles", "العشيرات"),
+                                               "ventiles": tr("Every 5%", "كل 5%")}[k])
+        pt = ds.percentile_table(df, cols, kind).round(decimals)
+        st.dataframe(pt, width="stretch")
+        csv_download(pt.reset_index().rename(columns={"index": "Variable"}), f"percentiles_{kind}.csv", key="ds_pct_dl")
+
+    with st.expander(tr("📖 Which measure should I report?", "📖 أي المقاييس أستخدم في البحث؟")):
+        st.markdown(tr(
+            "- **Mean ± SD** for roughly symmetric variables; **median & IQR** when |skewness| ≥ 1 or outliers exist.\n"
+            "- **Geometric mean** to average growth rates, ratios and index numbers.\n"
+            "- **Harmonic mean** for rates per unit (e.g. price per kg across markets).\n"
+            "- **CV** to compare variability across variables with different units or scales.\n"
+            "- **Gini / Lorenz** for concentration of income, land holdings, production or exports.",
+            "- **الوسط الحسابي ± الانحراف المعياري** للمتغيرات المتماثلة تقريباً، و**الوسيط والمدى الربيعي** "
+            "عندما يكون الالتواء ≥ 1 بالقيمة المطلقة أو عند وجود قيم شاذة.\n"
+            "- **الوسط الهندسي** لحساب متوسط معدلات النمو والنسب والأرقام القياسية.\n"
+            "- **الوسط التوافقي** لمتوسط المعدلات لكل وحدة (مثل سعر الكيلوجرام عبر الأسواق).\n"
+            "- **معامل الاختلاف** للمقارنة بين تشتت متغيرات مختلفة الوحدات أو المستويات.\n"
+            "- **معامل جيني ومنحنى لورنز** لقياس تركز الدخل أو الحيازات الزراعية أو الإنتاج أو الصادرات."))
 
     st.markdown("#### " + tr("Automatic interpretation", "القراءة التحليلية التلقائية"))
     for c in cols:
-        txt = ds.interpret_variable(c, table.loc[c].to_dict(), lang)
+        txt = ds.interpret_variable(c, full.loc[c].to_dict(), lang)
         if txt:
             insight(txt)
 
@@ -88,6 +157,55 @@ def _summary_tab(df, num_cols, lang):
                      color_discrete_sequence=[PALETTE[1]])
         fig.update_layout(showlegend=False, height=max(250, 28 * len(cols)), margin=dict(l=10, r=10, t=10, b=10))
         st.plotly_chart(fig)
+
+
+# ------------------------------------------
+def _concentration_tab(df, num_cols, cat_cols, lang):
+    ar = lang == "ar"
+    nonneg = [c for c in num_cols if (pd.to_numeric(df[c], errors="coerce").dropna() >= 0).all()]
+    if not nonneg:
+        st.info(tr("Concentration analysis needs a non-negative variable.",
+                   "يتطلب تحليل التركز متغيراً قيمه غير سالبة."))
+        return
+    c1, c2 = st.columns(2)
+    with c1:
+        var = st.selectbox(tr("Variable (income, production, area…)", "المتغير (الدخل، الإنتاج، المساحة…)"),
+                           nonneg, key="ds_conc_var")
+    with c2:
+        grp = st.selectbox(tr("Compare groups (optional)", "المقارنة بين مجموعات (اختياري)"),
+                           [None] + cat_cols, key="ds_conc_grp",
+                           format_func=lambda c: tr("— none —", "— بدون —") if c is None else c)
+
+    fig, info = charts.build_chart("lorenz", df, y=var, color=grp, palette="academic", lang=lang)
+    charts.style_academic(fig, title=tr(f"Lorenz curve — {var}", f"منحنى لورنز — {var}"),
+                          x_title=tr("Cumulative share of units", "النسبة التراكمية للوحدات"),
+                          y_title=tr(f"Cumulative share of {var}", f"النسبة التراكمية لـ {var}"),
+                          height=560, legend="bottom", rtl=ar)
+    st.plotly_chart(fig, config=charts.plotly_export_config("png", 3, "lorenz_curve"))
+
+    if grp:
+        table = ds.gini_by_group(df, var, grp).round(4)
+    else:
+        sh = ds.income_shares(df[var])
+        table = pd.DataFrame([{"Group": tr("All", "الكل"), "N": int(df[var].notna().sum()),
+                               "Gini": ds.gini(df[var]), **sh}]).round(4)
+    table = table.rename(columns=lambda m: ds.measure_label(m, lang) if m != "Group" else tr("Group", "المجموعة"))
+    st.dataframe(table, width="stretch", hide_index=True)
+    csv_download(table, f"gini_{var}.csv", key="ds_conc_dl")
+
+    for _, row in table.iterrows():
+        g = row[ds.measure_label("Gini", lang)]
+        if pd.isna(g):
+            continue
+        level = (tr("low", "منخفضة") if g < 0.3 else tr("moderate", "متوسطة") if g < 0.5
+                 else tr("high", "مرتفعة"))
+        name = row[tr("Group", "المجموعة")]
+        insight(tr(f"<b>{name}</b>: Gini = {g:.3f}, a {level} degree of concentration of {var}.",
+                   f"<b>{name}</b>: معامل جيني = {g:.3f}، أي أن درجة تركز {var} {level}."))
+    st.caption(tr("Gini: 0 = perfect equality, 1 = maximum concentration. Palma ratio = share of the top 10% ÷ "
+                  "share of the bottom 40% (needs ≥ 10 observations).",
+                  "معامل جيني: صفر = مساواة تامة، وواحد = أقصى تركز. نسبة بالما = نصيب أعلى 10% ÷ نصيب أدنى 40% "
+                  "(تتطلب 10 مشاهدات على الأقل)."))
 
 
 # ------------------------------------------
