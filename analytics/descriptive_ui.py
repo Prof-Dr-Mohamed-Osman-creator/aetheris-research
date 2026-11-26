@@ -156,7 +156,7 @@ def _summary_tab(df, num_cols, lang):
         fig = px.bar(mdf, x="pct", y="variable", orientation="h", labels={"pct": "%", "variable": ""},
                      color_discrete_sequence=[PALETTE[1]])
         fig.update_layout(showlegend=False, height=max(250, 28 * len(cols)), margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, key="ds_missing_chart")
 
 
 # ------------------------------------------
@@ -181,7 +181,7 @@ def _concentration_tab(df, num_cols, cat_cols, lang):
                           x_title=tr("Cumulative share of units", "النسبة التراكمية للوحدات"),
                           y_title=tr(f"Cumulative share of {var}", f"النسبة التراكمية لـ {var}"),
                           height=560, legend="bottom", rtl=ar)
-    st.plotly_chart(fig, config=charts.plotly_export_config("png", 3, "lorenz_curve"))
+    st.plotly_chart(fig, config=charts.plotly_export_config("png", 3, "lorenz_curve"), key="ds_lorenz_chart")
 
     if grp:
         table = ds.gini_by_group(df, var, grp).round(4)
@@ -231,7 +231,7 @@ def _distribution_tab(df, num_cols):
                                  name=tr("Normal curve", "المنحنى الطبيعي"), line=dict(color="#c0392b")))
         fig.update_layout(title=tr("Histogram + normal curve", "المدرج التكراري والمنحنى الطبيعي"),
                           showlegend=False, height=420, margin=dict(l=10, r=10, t=40, b=10))
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, key="ds_hist_chart")
     with c2:
         (osm, osr), (slope, intercept, _) = stats.probplot(x, dist="norm")
         fig = go.Figure()
@@ -242,7 +242,7 @@ def _distribution_tab(df, num_cols):
                           xaxis_title=tr("Theoretical quantiles", "الكميات النظرية"),
                           yaxis_title=tr("Sample quantiles", "كميات العينة"),
                           margin=dict(l=10, r=10, t=40, b=10))
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, key="ds_qq_chart")
 
     alpha = st.select_slider(tr("Significance level α", "مستوى المعنوية α"), [0.01, 0.05, 0.10], 0.05, key="ds_alpha")
     tests = ds.normality_tests(x, alpha)
@@ -284,7 +284,7 @@ def _correlation_tab(df, num_cols, lang):
 
     fig = px.imshow(r.round(2), text_auto=True, zmin=-1, zmax=1, color_continuous_scale="RdBu_r", aspect="auto")
     fig.update_layout(height=max(380, 45 * len(cols)), margin=dict(l=10, r=10, t=10, b=10))
-    st.plotly_chart(fig)
+    st.plotly_chart(fig, key="ds_corr_heatmap")
 
     st.markdown("#### " + tr("Publication-ready matrix", "مصفوفة جاهزة للنشر"))
     pub = ds.starred_matrix(r, p)
@@ -306,7 +306,7 @@ def _correlation_tab(df, num_cols, lang):
         fig = px.scatter_matrix(df, dimensions=cols, color_discrete_sequence=[PALETTE[0]])
         fig.update_traces(diagonal_visible=False, marker=dict(size=4, opacity=0.6))
         fig.update_layout(height=700)
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, key="ds_scatter_matrix")
 
 
 # ------------------------------------------
@@ -324,7 +324,7 @@ def _categorical_tab(df, cat_cols):
         fig = px.bar(ft.head(25), x="Category", y="Percent (%)", text_auto=".1f",
                      color_discrete_sequence=[PALETTE[0]])
         fig.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, key="ds_cat_bar")
 
     if len(cat_cols) >= 2:
         st.markdown("#### " + tr("Cross-tabulation & χ² test of independence", "الجداول المتقاطعة واختبار كاي² للاستقلال"))
@@ -370,7 +370,7 @@ def _group_tab(df, num_cols, cat_cols):
     for v in vals:
         fig = px.box(plot_df, x=g, y=v, points="outliers", color=g, color_discrete_sequence=PALETTE)
         fig.update_layout(showlegend=False, height=380, margin=dict(l=10, r=10, t=30, b=10), title=v)
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, key=f"ds_group_box_{v}")
 
 
 # ------------------------------------------
@@ -392,7 +392,7 @@ def _trend_tab(df, num_cols, cat_cols, time_cols):
     plot_df = df[[c for c in [tcol, vcol, ecol] if c]].dropna().sort_values(tcol)
     fig = px.line(plot_df, x=tcol, y=vcol, color=ecol, markers=True, color_discrete_sequence=PALETTE)
     fig.update_layout(height=430, margin=dict(l=10, r=10, t=10, b=10))
-    st.plotly_chart(fig)
+    st.plotly_chart(fig, key="ds_trend_line")
 
     gr = ds.growth_analysis(df, tcol, vcol, ecol)
     if gr.empty:
