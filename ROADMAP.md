@@ -1,0 +1,87 @@
+# Aetheris Research — Strategic Roadmap
+
+> **الملخص التنفيذي:** الهدف أن تصبح Aetheris المنصة البحثية الأولى للاقتصاديين باللغتين العربية والإنجليزية،
+> وأن تجمع في مكان واحد ما يتوزع اليوم بين EViews وStata وSPSS وGAMS وبرامج كتابة التقارير:
+> **البيانات ← التحليل ← التفسير الأكاديمي ← التقرير ← التدريب**، مع مساعد ذكاء اصطناعي يعتمد على النتائج
+> المحسوبة فعلاً ولا يختلق الأرقام.
+
+---
+
+## 1. Positioning — why researchers will choose Aetheris
+
+| Gap in today's tools | Aetheris answer |
+|---|---|
+| EViews / Stata / SPSS are expensive desktop software with English-only output | Free-to-start web platform, **Arabic-first academic output** (tables, interpretation, methodology text) |
+| Data, analysis and writing live in different programs | One workflow: **Data Hub → Analysis wings → Report Studio** sharing one Smart Memory |
+| Software gives numbers, not meaning | **Automatic academic interpretation** under every result (already live in Descriptive Statistics) |
+| Generic AI chatbots invent numbers and references | **Grounded AI**: the assistant only reads results computed by the platform |
+| Results are hard to reproduce | **Code export**: every analysis can be exported as Python / R / Stata code |
+| Little regional data in one place | Curated Arab-world & Egypt data + agriculture, climate and food-security sources |
+| Agricultural & development economics tools are scattered | Built-in growth/instability analysis, supply response, efficiency (DEA/SFA), farm planning LP |
+
+---
+
+## 2. Release plan
+
+### ✅ Phase 1 — Core (v1.0.0-alpha)
+Modular structure, bilingual UI, Smart Memory, file upload.
+
+### ✅ Phase 2 — Data Hub + Descriptive Statistics (this release)
+- **Global data:** World Bank WDI (43 curated indicators in 7 themes + search of the full catalogue, 50+ economies and regional aggregates) and FRED (22 key US / commodity series, any FRED ID, frequency alignment).
+- **Data Basket:** keep many datasets in memory, switch the active one, merge (e.g. survey data + World Bank indicators).
+- **Descriptive Statistics wing:** full summary table (CI, CV, skewness, kurtosis, outliers), 4 normality tests with histogram + Q-Q plot, Pearson/Spearman/Kendall matrices with significance stars, frequency tables & χ² / Cramér's V, group comparison, trend growth rates (log-linear) and instability index — every result with automatic Arabic/English interpretation and CSV export.
+- Synthetic demo dataset, RTL layout for Arabic, unit tests.
+
+### Phase 3 — Inferential Statistics
+- One- & two-sample t-tests, paired t, one-/two-way ANOVA with Tukey/Bonferroni post-hoc.
+- Non-parametric: Mann-Whitney, Wilcoxon, Kruskal-Wallis, Friedman, Fisher exact.
+- Effect sizes (Cohen's d, η², Cramér's V) and power / sample-size calculator.
+- **Test Advisor:** checks assumptions (normality, homogeneity of variance via Levene) and recommends the correct test.
+
+### Phase 4 — Econometrics Lab (flagship)
+- **Cross-section:** OLS with full diagnostics (Breusch-Pagan/White, VIF, RESET, Jarque-Bera), robust & clustered SEs, Logit/Probit with marginal effects, quantile regression, IV/2SLS.
+- **Time series:** ADF/PP/KPSS/Zivot-Andrews unit roots, **ARDL bounds testing** (Pesaran) with ECM, Johansen cointegration, VAR/VECM, Granger causality, impulse responses, ARIMA/SARIMA forecasting, structural breaks.
+- **Panel data:** pooled/FE/RE, Hausman, Driscoll-Kraay SEs, panel unit roots, dynamic panel (GMM).
+- **Causal inference:** difference-in-differences, event study, propensity-score matching.
+- **Applied economics:** Cobb-Douglas & translog production functions, stochastic frontier analysis, Nerlove supply response, AIDS demand systems, elasticities.
+- Publication-ready multi-model comparison tables (APA / journal style).
+
+### Phase 5 — Operations Research
+Linear, integer and goal programming with sensitivity analysis and shadow prices; transportation & assignment; **DEA** (CCR, BCC, Malmquist index); farm planning & MOTAD risk programming; CPM/PERT; inventory & queueing models; decision analysis under uncertainty.
+
+### Phase 6 — Report Studio + AI Assistant
+- Assemble any results into a report; export **Word (.docx) and PDF** with APA tables and figures.
+- Auto-generated *methodology* and *results* sections in academic Arabic or English.
+- **AI assistant (provider-agnostic):** Claude, OpenAI or open-source models (via OpenRouter / Ollama), keys stored in Streamlit secrets. Uses only the platform's computed results, cites the data source, and flags what it cannot verify.
+- **Chat with your data:** ask questions in Arabic ("ما أثر الحرارة على إنتاجية القمح؟") → the assistant proposes the analysis, runs it, explains it.
+
+### Phase 7 — Academy (courses & training)
+- Structured tracks: Statistics for economists, Econometrics (beginner → advanced), Time series, Panel data, Operations research, Research methodology & academic writing.
+- Lessons linked to live datasets — the learner runs the analysis inside the platform.
+- Quizzes, practical assignments, **certificates**; training packages for universities, ministries and research centres.
+- **Learn mode** in every wing: shows the formula, assumptions and how to interpret each output.
+
+### Phase 8 — Community & marketplace
+Researcher profiles, Q&A, shared (anonymised) projects, peer feedback, expert consultation booking, dataset sharing.
+
+---
+
+## 3. Platform foundations (run in parallel)
+
+| Area | Plan |
+|---|---|
+| Accounts & projects | Login (Streamlit auth / Supabase), saved projects, version history |
+| Monetisation | Free tier + Pro / Institutional subscriptions (Paymob for Egypt & MENA, Stripe globally) |
+| More data | IMF, FAOSTAT, UN Comtrade, OECD, ILOSTAT, CAPMAS (Egypt), Our World in Data, NASA POWER & ERA5 climate data |
+| Reproducibility | Export every analysis as Python / R / Stata code + full audit log |
+| Quality | Unit tests for every statistical engine, validated against Stata/R outputs; CI on GitHub Actions |
+| Languages | Arabic, English → French (Maghreb) |
+| Performance | Caching, lazy loading, move heavy jobs to a backend API when user base grows |
+
+---
+
+## 4. Architecture principle
+
+Every wing is split into a **pure engine** (`analytics/*.py`, `data/engines/*.py` — no Streamlit, unit-tested)
+and a **UI layer** (`*_ui.py`). The same engines will be reused by the report generator, the AI assistant
+and a future public API.

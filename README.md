@@ -17,30 +17,37 @@ A complete research workflow inside one integrated environment:
 
 ## Current Status
 
-- Version: `1.0.0-alpha`
-- Architecture: Modular (easy to extend with new wings)
-- Languages: English (primary) + Arabic (full support)
-- Smart Memory system: Implemented
-- Core structure: Ready
+- Version: `1.1.0-alpha`
+- Live: https://aetheris-research.streamlit.app
+- Languages: English + Arabic (full RTL support)
+- ✅ Data Hub: file upload, World Bank WDI, FRED, Data Basket (multi-dataset memory + merge)
+- ✅ Descriptive Statistics wing with automatic academic interpretation
+- Strategic plan: see [ROADMAP.md](ROADMAP.md)
 
 ## Project Structure
 
 ```
 aetheris-research/
-├── app.py                 # Main entry point
-├── config/
-│   ├── settings.py
-│   └── languages.py
+├── app.py                     # Main entry point & navigation
+├── config/                    # Settings and language dictionary
 ├── core/
-│   ├── memory.py          # Smart Memory system
-│   └── utils.py
+│   ├── memory.py              # Smart Memory (multi-dataset library + active dataset)
+│   └── utils.py               # i18n helpers, RTL styling, shared widgets
 ├── data/
-│   ├── engines/           # International data sources
-│   └── upload.py          # File upload handling
-├── analytics/             # Statistical & econometric modules
-├── reports/               # Report generation
-├── academy/
-├── community/
+│   ├── engines/
+│   │   ├── worldbank.py       # World Bank Indicators API (no key)
+│   │   └── fred.py            # FRED CSV endpoint (no key)
+│   ├── upload.py              # My Data (CSV, Excel, TSV, JSON)
+│   ├── global_data.py         # Global Data UI
+│   ├── basket.py              # Data Basket UI
+│   ├── merge.py               # Dataset merging engine
+│   └── samples.py             # Synthetic demo dataset
+├── analytics/
+│   ├── descriptive.py         # Descriptive statistics engine (pure, tested)
+│   └── descriptive_ui.py      # Descriptive Statistics wing
+├── tests/                     # Unit tests (pytest)
+├── reports/  academy/  community/
+├── ROADMAP.md
 └── requirements.txt
 ```
 
@@ -51,14 +58,23 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Roadmap (MVP)
+Run the tests:
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+## Roadmap (summary)
 
 1. ✅ Core structure + bilingual support + Smart Memory
-2. ⏳ Data Hub (Upload + World Bank + FRED)
-3. ⏳ Descriptive Statistics
-4. ⏳ Inferential Statistics (basic)
-5. ⏳ Econometrics Lab (starting with regression)
-6. ⏳ Simple Report Generator
+2. ✅ Data Hub (Upload + World Bank + FRED + Data Basket)
+3. ✅ Descriptive Statistics
+4. ⏳ Inferential Statistics + Test Advisor
+5. ⏳ Econometrics Lab (OLS diagnostics, ARDL, panel, VAR, SFA…)
+6. ⏳ Operations Research (LP, DEA, transportation…)
+7. ⏳ Report Studio + grounded AI assistant
+8. ⏳ Academy (courses, training, certificates) & Community
 
 ---
 
