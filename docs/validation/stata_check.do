@@ -773,6 +773,22 @@ capture noisily chk "xtfrontier tvd b[ln_labour_days]" [lny]_b[ln_labour_days] 0
 capture noisily chk "xtfrontier tvd b[ln_fertilizer_kg]" [lny]_b[ln_fertilizer_kg] 0.20408338406313278 1e-4
 capture noisily chk "xtfrontier tvd log L" e(ll) -55.153345343172816 1e-5
 capture noisily chk "xtfrontier tvd eta" [eta]_b[_cons] 0.074483681860738 1e-3
+import delimited "v110_tfp.csv", clear varnames(1) case(preserve)
+encode firm_id, gen(fid)
+xtset fid year
+gen ln_inv = ln(investment)
+capture which prodest
+if _rc ssc install prodest
+* prodest (Rovigatti & Mollisi) uses its own polynomial and optimiser settings: compare to ~2 decimals.
+capture noisily prodest ln_value_added, free(ln_labour) state(ln_capital) method(op) proxy(ln_inv) va poly(3) reps(0)
+capture noisily chk "prodest op b[ln_labour]" _b[ln_labour] 0.6126128762438111 3e-2
+capture noisily chk "prodest op b[ln_capital]" _b[ln_capital] 0.27349249771534917 3e-2
+capture noisily prodest ln_value_added, free(ln_labour) state(ln_capital) method(lp) proxy(ln_materials) va poly(3) reps(0)
+capture noisily chk "prodest lp b[ln_labour]" _b[ln_labour] 0.6126128957062628 3e-2
+capture noisily chk "prodest lp b[ln_capital]" _b[ln_capital] 0.27349261286346294 3e-2
+capture noisily prodest ln_value_added, free(ln_labour) state(ln_capital) method(lp) proxy(ln_materials) acf va poly(3) reps(0)
+capture noisily chk "prodest acf b[ln_labour]" _b[ln_labour] 0.6321792285321619 3e-2
+capture noisily chk "prodest acf b[ln_capital]" _b[ln_capital] 0.26777575423337363 3e-2
 import delimited "v110_budget.csv", clear varnames(1) case(preserve)
 capture which quaids
 if _rc ssc install quaids

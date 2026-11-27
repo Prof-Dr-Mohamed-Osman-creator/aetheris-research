@@ -48,7 +48,7 @@ def _t(pair):
 _NAMES_AR = {"Mean": "المتوسط", "Naive": "الساذج", "Seasonal naive": "الساذج الموسمي", "Random walk with drift": "السير العشوائي بانجراف",
              "Theta": "ثيتا", "Simple exponential smoothing": "التمهيد الأسي البسيط", "Holt": "هولت", "Holt (damped)": "هولت (مخمَّد)",
              "Holt-Winters (multiplicative)": "هولت-وينترز (ضربي)", "Holt-Winters (additive)": "هولت-وينترز (جمعي)",
-             "Prophet-style (piecewise trend + Fourier)": "على نمط Prophet (اتجاه متقطع + فورييه)"}
+             "Prophet-style (piecewise trend + Fourier)": "على نمط Prophet (اتجاه متقطع + فورييه)", "Prophet (Meta)": "Prophet (ميتا)"}
 
 
 def _nm(name: str) -> str:
@@ -226,8 +226,9 @@ def _race(df):
     s, t, v, h = p
     y = s.y
     c1, c2, c3 = st.columns([2.4, 1, 1])
-    avail = [k for k in F.RACE if k != "combo" and (s.s > 1 or k != "snaive")]
-    models = c1.multiselect(tr("Models", "النماذج"), avail, avail, key="fr_models", format_func=lambda k: _t(F.RACE[k]))
+    avail = F.race_keys(s.s)
+    default = [k for k in avail if k not in ("prophet_meta", "ml_xgb", "ml_cat")]
+    models = c1.multiselect(tr("Models", "النماذج"), avail, default, key="fr_models", format_func=lambda k: _t(F.RACE[k]))
     origins = c2.number_input(tr("Forecast origins", "أصول التنبؤ"), 3, 30, 8, key="fr_orig")
     metric = c3.selectbox(tr("Rank by", "الترتيب حسب"), ["MASE", "RMSE", "MAE", "MAPE", "RMSSE"], key="fr_metric")
     st.caption(tr("Each model is re-estimated at every origin and forecasts h steps ahead; ETS / ARIMA specifications are "
@@ -734,16 +735,17 @@ def _ml(df):
         st.error(tr("scikit-learn is not installed.", "مكتبة scikit-learn غير مثبتة."))
         return
     c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
-    ks = c1.multiselect(tr("Models", "النماذج"), keys + ["prophet"], [k for k in ("gbm", "rf", "lgbm") if k in keys] + ["prophet"], key="fm_k",
-                        format_func=lambda k: tr("Prophet-style", "على نمط Prophet") if k == "prophet" else _t(F.ML_MODELS[k]))
+    extra = ["prophet"] + (["prophet_meta"] if F.prophet_available() else [])
+    ks = c1.multiselect(tr("Models", "النماذج"), keys + extra, [k for k in ("gbm", "rf", "lgbm") if k in keys] + extra, key="fm_k",
+                        format_func=lambda k: {"prophet": tr("Prophet-style", "على نمط Prophet"), "prophet_meta": tr("Prophet (Meta)", "Prophet (ميتا)")}.get(k) or _t(F.ML_MODELS[k]))
     lags = c2.number_input(tr("Lags", "الإبطاءات"), 1, 36, max(2, min(s.s, 12)) if s.s > 1 else 6, key="fm_l")
     dif = c3.selectbox(tr("Differencing", "الفروق"), ["auto", "yes", "no"], key="fm_d",
                        format_func=lambda d: {"auto": tr("auto (KPSS)", "تلقائي (KPSS)"), "yes": tr("first differences", "فروق أولى"), "no": tr("levels", "مستويات")}[d])
     test = c4.number_input(tr("Hold-out", "العينة المحجوزة"), h, max(h, len(ya) // 3), min(max(h, 12), len(ya) // 3), key="fm_test")
-    missing = [k for k in ("xgb", "cat") if not av.get(k)]
+    missing = [k for k in ("xgb", "cat") if not av.get(k)] + ([] if F.prophet_available() else ["prophet"])
     if missing:
-        st.caption(tr("XGBoost / CatBoost are used when installed (pip install xgboost catboost); LightGBM-style histogram boosting is always available.",
-                      "يُستخدم XGBoost وCatBoost عند تثبيتهما (pip install xgboost catboost)؛ ويتوفر دائماً التعزيز بالهيستوجرام على نمط LightGBM."))
+        st.caption(tr("Not installed here: " + ", ".join(missing) + " (pip install xgboost-cpu catboost prophet).",
+                      "غير مثبت هنا: " + "، ".join(missing) + " (pip install xgboost-cpu catboost prophet)."))
     sig = _sig(("ml", v, s.transform, s.s, h, tuple(ks), lags, dif, test))
     if st.button(tr("▶️ Train and evaluate", "▶️ التدريب والتقييم"), type="primary", key="fm_run") and ks:
         dd = None if dif == "auto" else dif == "yes"
@@ -753,7 +755,13 @@ def _ml(df):
         for i, k in enumerate(ks):
             bar.progress(i / len(ks), text=k)
             try:
-                fn = (lambda yy, hh: F.prophet_style(yy, hh, s.s)) if k == "prophet" else (lambda yy, hh, k=k: F.ml_forecast(yy, hh, k, s.s, int(lags), dd))
+                if k == "prophet":
+                    fn = lambda yy, hh: F.prophet_style(yy, hh, s.s)  # noqa: E731
+                elif k == "prophet_meta":
+                    idx_all = list(y.index)
+                    fn = lambda yy, hh, idx_all=idx_all: F.prophet_official(idx_all[:len(yy)] if isinstance(y.index, pd.DatetimeIndex) else None, yy, hh, s.s)  # noqa: E731
+                else:
+                    fn = lambda yy, hh, k=k: F.ml_forecast(yy, hh, k, s.s, int(lags), dd)  # noqa: E731
                 out[k] = fn(ya, h)
                 ho = fn(tr_, int(test))
                 acc.append({"Model": _nm(out[k].name), **F.accuracy(te, ho.mean, tr_, s.s)})

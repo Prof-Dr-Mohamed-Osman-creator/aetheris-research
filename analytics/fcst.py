@@ -1016,14 +1016,37 @@ def prophet_style(y, h: int, s: int = 12, n_changepoints: int = 25, cp_range: fl
               {"changepoints": cp_tab, "trend": (X_trend @ b[:p_trend]) * scale, "fourier order": K}, sims=paths)
 
 
-def prophet_official(dates, y, h: int, s: int = 12, levels=LEVELS):
-    from prophet import Prophet   # noqa: F401 — optional dependency
-    m = Prophet(interval_width=0.95, yearly_seasonality=s == 12 or s == 52 or s == 365)
-    df = pd.DataFrame({"ds": pd.to_datetime(dates), "y": np.asarray(y, float)})
-    m.fit(df)
-    fut = m.make_future_dataframe(h, freq=pd.infer_freq(df.ds) or "MS", include_history=False)
+def prophet_available() -> bool:
+    try:
+        __import__("prophet")
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def prophet_official(dates, y, h: int, s: int = 12, levels=LEVELS, samples: int = 500) -> Fc:
+    """Meta's Prophet (Taylor & Letham 2018) via the `prophet` package: piecewise-linear trend, yearly / weekly
+    seasonality chosen from the frequency, intervals and fan from its posterior-predictive samples."""
+    import logging
+    for lg in ("cmdstanpy", "prophet"):
+        logging.getLogger(lg).setLevel(logging.ERROR)
+    from prophet import Prophet
+    y = np.asarray(y, float)
+    if dates is None:
+        freq0 = {12: "MS", 4: "QS", 52: "W", 7: "D", 5: "B", 1: "YS"}.get(s, "MS")
+        dates = pd.date_range("2000-01-01", periods=len(y), freq=freq0)
+    ds_ = pd.to_datetime(pd.Series(dates)).reset_index(drop=True)
+    freq = pd.infer_freq(ds_) or {12: "MS", 4: "QS", 52: "W", 7: "D", 5: "B", 1: "YS"}.get(s, "MS")
+    m = Prophet(interval_width=0.95, uncertainty_samples=samples, yearly_seasonality=s in (4, 12, 52, 7, 5),
+                weekly_seasonality=s in (7, 5), daily_seasonality=False)
+    m.fit(pd.DataFrame({"ds": ds_, "y": y}))
+    fut = m.make_future_dataframe(h, freq=freq, include_history=False)
     p = m.predict(fut)
-    return Fc("Prophet", p.yhat.to_numpy(), {95: (p.yhat_lower.to_numpy(), p.yhat_upper.to_numpy())})
+    sims = m.predictive_samples(fut)["yhat"].T
+    mean = p["yhat"].to_numpy()
+    pi = {lv: (np.quantile(sims, 0.5 - lv / 200, 0), np.quantile(sims, 0.5 + lv / 200, 0)) for lv in levels}
+    fit = m.predict(pd.DataFrame({"ds": ds_}))["yhat"].to_numpy()
+    return Fc("Prophet (Meta)", mean, pi, fit, y - fit, {"changepoints": pd.DataFrame({"changepoint": m.changepoints.to_numpy()})}, sims=sims)
 
 
 # ==========================================================
@@ -1233,7 +1256,21 @@ RACE = {"naive": ("Naive", "الساذج"), "snaive": ("Seasonal naive", "الس
         "mean": ("Mean", "المتوسط"), "ets": ("ETS (automatic)", "ETS (تلقائي)"), "arima": ("ARIMA (automatic)", "ARIMA (تلقائي)"),
         "theta": ("Theta", "ثيتا"), "ss": ("State space (local linear trend)", "الفضاء الحالتي (اتجاه خطي محلي)"),
         "ml_gbm": ("Gradient boosting", "تعزيز التدرج"), "ml_rf": ("Random forest", "الغابات العشوائية"),
-        "prophet": ("Prophet-style", "على نمط Prophet"), "combo": ("Combination (mean of the top 3)", "التجميع (متوسط أفضل 3)")}
+        "prophet": ("Prophet-style", "على نمط Prophet"), "prophet_meta": ("Prophet (Meta)", "Prophet (ميتا)"),
+        "ml_xgb": ("XGBoost", "XGBoost"), "ml_cat": ("CatBoost", "CatBoost"), "combo": ("Combination (mean of the top 3)", "التجميع (متوسط أفضل 3)")}
+
+
+def race_keys(s: int) -> list:
+    """Models available for the horse-race in this installation (optional packages only when installed)."""
+    av = ml_available()
+    out = []
+    for m in RACE:
+        if m == "combo" or (m == "snaive" and s < 2):
+            continue
+        if (m == "prophet_meta" and not prophet_available()) or (m == "ml_xgb" and not av.get("xgb")) or (m == "ml_cat" and not av.get("cat")):
+            continue
+        out.append(m)
+    return out
 
 
 def race_model(key: str, s: int, spec: dict | None = None, calib: int | None = None):
@@ -1247,7 +1284,8 @@ def race_model(key: str, s: int, spec: dict | None = None, calib: int | None = N
             "mean": lambda y, h: mean_fc(y, h), "ets": ets_f, "arima": ar_f,
             "theta": lambda y, h: theta(y, h, s), "ss": lambda y, h: state_space(y, h, "lltrend", s),
             "ml_gbm": lambda y, h: ml_forecast(y, h, "gbm", s, calib=calib), "ml_rf": lambda y, h: ml_forecast(y, h, "rf", s, calib=calib),
-            "prophet": lambda y, h: prophet_style(y, h, s, sims=200)}[key]
+            "prophet": lambda y, h: prophet_style(y, h, s, sims=200), "prophet_meta": lambda y, h: prophet_official(None, y, h, s, samples=200),
+            "ml_xgb": lambda y, h: ml_forecast(y, h, "xgb", s, calib=calib), "ml_cat": lambda y, h: ml_forecast(y, h, "cat", s, calib=calib)}[key]
 
 
 def horse_race(y, h: int, s: int = 1, models=None, origins: int = 8, step: int | None = None, metric: str = "MASE",
@@ -1258,7 +1296,7 @@ def horse_race(y, h: int, s: int = 1, models=None, origins: int = 8, step: int |
     sample. A combination of the top three models is added."""
     y = np.asarray(y, float)
     n = len(y)
-    models = models or [m for m in RACE if m != "combo" and (s > 1 or m != "snaive")]
+    models = models or [m for m in race_keys(s) if m not in ("prophet_meta", "ml_xgb", "ml_cat")]
     step = step or max(1, h // 2)
     initial = n - h - (origins - 1) * step
     if initial < max(2 * s, 12):
