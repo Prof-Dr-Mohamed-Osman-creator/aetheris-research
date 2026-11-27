@@ -26,12 +26,28 @@ from core.utils import tr, is_ar, insight, csv_download, excel_download
 MODELS_KEY = "eco_models"        # {label: {"r": RegResult, "diag": dict, "dataset": str}}
 CURRENT_KEY = "eco_current"
 
+FLAG_AR = {"leverage": "رفع مرتفع", "outlier": "قيمة شاذة", "Cook": "كوك", "DFFITS": "DFFITS", "DFBETAS": "DFBETAS"}
+CONCERN_AR = {"none": "لا يوجد", "moderate": "متوسط", "serious": "خطير"}
 COL_AR = {"Variable": "المتغير", "Coef.": "المعامل", "Std. Err.": "الخطأ المعياري", "p-value": "القيمة الاحتمالية",
           "CI low": "حد الثقة الأدنى", "CI high": "حد الثقة الأعلى", "Sig.": "المعنوية", "Std. beta": "المعامل المعياري",
           "Test": "الاختبار", "Statistic": "الإحصاءة", "df": "درجات الحرية", "Verdict": "الحكم", "Note": "ملاحظة",
           "Type": "النوع", "At value": "عند القيمة", "Marginal effect dY/dX": "الأثر الحدي dY/dX", "ME s.e.": "خ.م للأثر",
           "ME p-value": "p للأثر", "Elasticity": "المرونة", "Elasticity s.e.": "خ.م للمرونة",
-          "El. CI low": "حد أدنى للمرونة", "El. CI high": "حد أعلى للمرونة", "El. p-value": "p للمرونة"}
+          "El. CI low": "حد أدنى للمرونة", "El. CI high": "حد أعلى للمرونة", "El. p-value": "p للمرونة",
+          "VIF": "VIF", "Tolerance (1/VIF)": "التسامح (1/VIF)", "Concern": "درجة القلق", "Dimension": "البُعد",
+          "Eigenvalue": "الجذر المميز", "Condition index": "دليل الحالة", "obs": "المشاهدة", "Leverage": "الرفع",
+          "Std. residual": "البواقي المعيارية", "Stud. residual": "البواقي المعيارية الخارجية", "Cook's D": "مسافة كوك",
+          "Flags": "التنبيهات", "Shape": "الشكل", "Turning point": "نقطة التحول", "Within data range": "داخل مدى البيانات",
+          "Term": "الحد", "Partial SS": "مجموع المربعات الجزئي", "F": "F", "Partial η²": "η² الجزئي",
+          "Level": "الفئة", "Raw mean": "المتوسط الخام", "Adjusted mean": "المتوسط المعدل",
+          "Size": "الحجم", "Variables": "المتغيرات", "Best by": "الأفضل وفق", "Block": "الكتلة", "Added": "المضاف",
+          "Form": "الصيغة", "Equation": "المعادلة", "Action": "الإجراء", "Path": "المسار",
+          "Moderator value": "قيمة المعدِّل", "Slope": "الميل"}
+
+
+def _ms(label, options, **kw):
+    """Multiselect with a translated placeholder."""
+    return st.multiselect(label, options, placeholder=tr("Choose…", "اختر…"), **kw)
 
 
 def _lang():
@@ -144,10 +160,10 @@ def _spec_widgets(df, key, guided, allow_poly=True, allow_inter=True):
                          key=f"{key}_y")
     with c2:
         tcols = set(ds.time_columns(df))
-        x = st.multiselect(tr("Numeric regressors X", "المتغيرات المستقلة الرقمية X"), [c for c in num if c != y],
+        x = _ms(tr("Numeric regressors X", "المتغيرات المستقلة الرقمية X"), [c for c in num if c != y],
                            default=[c for c in num if c != y and c not in tcols][:2], key=f"{key}_x")
     with c3:
-        cats = st.multiselect(tr("Categorical factors (dummies)", "العوامل النوعية (متغيرات صورية)"),
+        cats = _ms(tr("Categorical factors (dummies)", "العوامل النوعية (متغيرات صورية)"),
                               [c for c in cat if c != y], key=f"{key}_cat")
     reference = {}
     if cats:
@@ -173,14 +189,14 @@ def _spec_widgets(df, key, guided, allow_poly=True, allow_inter=True):
     nolog = []
     with c2:
         if form in ("loglog", "linlog", "reciprocal") and x:
-            nolog = st.multiselect(tr("Keep in levels (not transformed): trend, shares, scores…",
+            nolog = _ms(tr("Keep in levels (not transformed): trend, shares, scores…",
                                       "تبقى بقيمها دون تحويل (الاتجاه الزمني، النسب، الدرجات…)"), x, key=f"{key}_nolog")
     poly, inter, center = {}, [], False
     if allow_poly or allow_inter:
         c1, c2, c3 = st.columns([2, 3, 1])
         if allow_poly:
             with c1:
-                psel = st.multiselect(tr("Add squared terms (U-shape / turning point)", "إضافة حدود تربيعية (شكل U / نقطة التحول)"),
+                psel = _ms(tr("Add squared terms (U-shape / turning point)", "إضافة حدود تربيعية (شكل U / نقطة التحول)"),
                                       x, key=f"{key}_poly")
                 deg = 2
                 if psel and not guided:
@@ -190,7 +206,7 @@ def _spec_widgets(df, key, guided, allow_poly=True, allow_inter=True):
             with c2:
                 pool = x + cats
                 pairs = [f"{a} × {b}" for i, a in enumerate(pool) for b in pool[i + 1:]]
-                isel = st.multiselect(tr("Interaction terms (moderation)", "حدود التفاعل (التأثير المعدِّل)"), pairs,
+                isel = _ms(tr("Interaction terms (moderation)", "حدود التفاعل (التأثير المعدِّل)"), pairs,
                                       key=f"{key}_inter")
                 inter = [tuple(s.split(" × ")) for s in isel]
             with c3:
@@ -373,13 +389,13 @@ def _estimates(df, r, diag, alpha, key):
     if r.design.spec.categorical:
         with st.expander(tr("ANCOVA / term tests & adjusted means", "تحليل التغاير: اختبار الحدود والمتوسطات المعدلة"),
                          expanded=False):
-            st.dataframe(rg.term_tests(r).round(4), width="stretch", hide_index=True)
+            st.dataframe(_ar_cols(rg.term_tests(r).round(4)), width="stretch", hide_index=True)
             st.caption(tr("Joint Wald/F test of each term (all dummies of a factor together), each added last; "
                           "partial η² = share of remaining variance explained by the term.",
                           "اختبار والد/F المشترك لكل حد (جميع المتغيرات الصورية للعامل معاً) بعد إدخال بقية الحدود؛ "
                           "وη² الجزئي هو نسبة التباين المتبقي الذي يفسّره الحد."))
             fac = st.selectbox(tr("Adjusted means for", "المتوسطات المعدلة لـ"), r.design.spec.categorical, key=f"{key}_am")
-            st.dataframe(rg.adjusted_means(df, r, fac).round(4), width="stretch", hide_index=True)
+            st.dataframe(_ar_cols(rg.adjusted_means(df, r, fac).round(4)), width="stretch", hide_index=True)
     c1, c2 = st.columns([3, 1])
     with c1:
         default = f"({len(_models()) + 1}) {r.y_label} — {r.method.upper()}"
@@ -415,11 +431,13 @@ def _diagnostics(r, diag, key):
     tab = diag["table"].copy()
     tab["Verdict"] = tab["ok"].map({True: tr("✅ holds", "✅ مستوفى"), False: tr("❌ violated", "❌ غير مستوفى")}).fillna("ℹ️")
     tab["Group"] = tab["group"].map(lambda g: dx.GROUPS[g][1 if is_ar() else 0])
-    show = tab[["Group", "Test_ar" if is_ar() else "Test", "Statistic", "df", "p-value", "Verdict", "note"]].copy()
+    show = tab[["Group", "Test_ar" if is_ar() else "Test", "Statistic", "df", "p-value", "Verdict",
+                "note_ar" if is_ar() else "note"]].copy()
     show.columns = [tr("Assumption", "الافتراض"), tr("Test", "الاختبار"), tr("Statistic", "الإحصاءة"),
                     tr("df", "درجات الحرية"), tr("p-value", "القيمة الاحتمالية"), tr("Verdict", "الحكم"), tr("Note", "ملاحظة")]
-    show[show.columns[3]] = show[show.columns[3]].astype(str).replace({"None": "", "nan": ""})
+    show[show.columns[3]] = show[show.columns[3]].map(lambda v: "" if v is None or (isinstance(v, float) and np.isnan(v)) else str(v))
     show[show.columns[4]] = show[show.columns[4]].map(_fmt_p)
+    show[show.columns[2]] = show[show.columns[2]].map(lambda v: "" if v is None or pd.isna(v) else f"{v:.4f}")
     st.dataframe(show.round(4), width="stretch", hide_index=True, height=min(760, 38 * len(show) + 40))
     st.caption(tr("Tests use the whitened residuals of the estimated model (weighted for WLS/FGLS, quasi-differenced "
                   "for GLS-AR(1)). Durbin-Watson p-values are exact (Imhof algorithm) for the actual regressor matrix.",
@@ -430,12 +448,15 @@ def _diagnostics(r, diag, key):
     with c1:
         if "vif" in d and not d["vif"].empty:
             st.markdown("**" + tr("Variance inflation factors", "معاملات تضخم التباين") + "**")
-            st.dataframe(d["vif"].round(3), width="stretch", hide_index=True)
+            vt = d["vif"].round(3)
+            if is_ar():
+                vt["Concern"] = vt["Concern"].map(CONCERN_AR)
+            st.dataframe(_ar_cols(vt), width="stretch", hide_index=True)
     with c2:
         if "cond" in d:
             st.markdown("**" + tr("Belsley condition indices & variance proportions",
                                   "أدلة الحالة لبيلسلي ونسب تجزئة التباين") + "**")
-            st.dataframe(d["cond"].round(3), width="stretch", hide_index=True)
+            st.dataframe(_ar_cols(d["cond"].round(3)), width="stretch", hide_index=True)
     if "influence" in d:
         inf = d["influence"]
         flagged = inf[inf["Flags"] != ""].sort_values("Cook's D", ascending=False)
@@ -447,7 +468,10 @@ def _diagnostics(r, diag, key):
                       f"حدود القطع: الرفع > {cut.get('leverage', 0):.3f}، |البواقي المعيارية الخارجية| > 3، مسافة كوك > {cut.get('cook', 0):.4f}، "
                       f"|DFFITS| > {cut.get('dffits', 0):.3f}، |DFBETAS| > {cut.get('dfbetas', 0):.3f}."))
         base_cols = ["obs", "Leverage", "Std. residual", "Stud. residual", "Cook's D", "DFFITS", "Flags"]
-        st.dataframe(flagged[base_cols].head(50).round(4), width="stretch", hide_index=True)
+        fl = flagged[base_cols].head(50).round(4)
+        if is_ar():
+            fl["Flags"] = fl["Flags"].map(lambda f: "، ".join(FLAG_AR.get(x.strip(), x) for x in f.split(",")))
+        st.dataframe(_ar_cols(fl), width="stretch", hide_index=True)
         csv_download(inf.round(6), "influence_measures.csv", tr("⬇️ All influence measures (CSV)", "⬇️ جميع مقاييس التأثير (CSV)"),
                      key=f"{key}_infl_dl")
 
@@ -463,7 +487,15 @@ def _effects(df, r, key):
                   "نماذج لوغاريتم Y مصححة بطريقة كينيدي (1981)."))
     try:
         eff = rp.effects_table(df, r)
-        st.dataframe(_ar_cols(eff.round(4)), width="stretch", hide_index=True)
+        show = eff.round(4)
+        for c in ("ME p-value", "El. p-value"):
+            show[c] = eff[c].map(_fmt_p)
+        if is_ar():
+            show["Type"] = show["Type"].map({"continuous": "متصل", "discrete": "متقطع (مقارنة بالفئة المرجعية)"})
+            if "Note" in show:
+                show["Note"] = show["Note"].map(lambda n: "نسبة التغير في Y مقارنة بالفئة المرجعية (تصحيح كينيدي)" if isinstance(n, str) and "Kennedy" in n
+                                                else "التغير في Y مقارنة بالفئة المرجعية" if isinstance(n, str) else "")
+        st.dataframe(_ar_cols(show), width="stretch", hide_index=True)
         for _, row in eff[eff["Type"] == "continuous"].iterrows():
             e = row["Elasticity"]
             kind = tr("elastic (|e| > 1)", "مرن (|e| > 1)") if abs(e) > 1 else tr("inelastic (|e| < 1)", "غير مرن (|e| < 1)")
@@ -475,7 +507,7 @@ def _effects(df, r, key):
     tp = rp.turning_points(r, df)
     if not tp.empty:
         st.markdown("**" + tr("Turning points of quadratic terms", "نقاط التحول للحدود التربيعية") + "**")
-        st.dataframe(tp.round(4), width="stretch", hide_index=True)
+        st.dataframe(_ar_cols(tp.round(4)), width="stretch", hide_index=True)
         for _, row in tp.iterrows():
             st.caption(tr(f"{row['Variable']}: {row['Shape']} at {row['Turning point']:.4g} "
                           f"(95% CI {row['CI low']:.4g} – {row['CI high']:.4g})"
@@ -649,7 +681,7 @@ def _journal_tab():
                    "صيغ لمقارنتها جنباً إلى جنب."))
         return
     names = list(models)
-    sel = st.multiselect(tr("Models (columns)", "النماذج (الأعمدة)"), names, default=names[-4:], key="eco_jt_sel")
+    sel = _ms(tr("Models (columns)", "النماذج (الأعمدة)"), names, default=names[-4:], key="eco_jt_sel")
     if not sel:
         return
     c1, c2, c3, c4 = st.columns(4)
@@ -682,7 +714,7 @@ def _journal_tab():
     st.markdown("**" + tr("Coefficient comparison", "مقارنة المعاملات") + "**")
     _chart(rc.coef_plot(res, sel, rtl=is_ar()), "eco_jt_coef", "coefficient_comparison")
     with st.expander(tr("🗑️ Manage saved models", "🗑️ إدارة النماذج المحفوظة"), expanded=False):
-        rm = st.multiselect(tr("Remove", "حذف"), names, key="eco_jt_rm")
+        rm = _ms(tr("Remove", "حذف"), names, key="eco_jt_rm")
         if rm and st.button(tr("Remove selected", "حذف المحدد"), key="eco_jt_rm_btn"):
             for n in rm:
                 models.pop(n, None)
@@ -730,7 +762,7 @@ def _selection_tab(df):
             pe = st.number_input(tr("p to enter", "p للإدخال"), 0.001, 0.5, 0.05, key="eco_sw_pe")
         with c4:
             pr = st.number_input(tr("p to remove", "p للحذف"), 0.001, 0.5, 0.10, key="eco_sw_pr")
-        force = st.multiselect(tr("Always keep", "متغيرات تبقى دائماً"), cand, key="eco_sw_force")
+        force = _ms(tr("Always keep", "متغيرات تبقى دائماً"), cand, key="eco_sw_force")
         if st.button(tr("Run stepwise", "تشغيل الانحدار التدريجي"), key="eco_sw_run"):
             out = rg.stepwise(design, direction, crit, pe, pr, force)
             st.dataframe(out["steps"].round(5), width="stretch", hide_index=True)
@@ -749,14 +781,14 @@ def _selection_tab(df):
         with c1:
             mx = st.number_input(tr("Max model size", "أقصى حجم للنموذج"), 1, max(1, len(cand)), min(len(cand), 8), key="eco_bs_mx")
         with c2:
-            force = st.multiselect(tr("Always keep", "متغيرات تبقى دائماً"), cand, key="eco_bs_force")
+            force = _ms(tr("Always keep", "متغيرات تبقى دائماً"), cand, key="eco_bs_force")
         if st.button(tr("Run best subsets", "تشغيل أفضل مجموعة"), key="eco_bs_run"):
             try:
                 out = rg.best_subsets(design, int(mx), force)
             except ValueError as e:
                 st.error(str(e))
                 return
-            st.dataframe(out.drop(columns="_cols").round(4), width="stretch", hide_index=True)
+            st.dataframe(_ar_cols(out.drop(columns="_cols").round(4)), width="stretch", hide_index=True)
             import plotly.graph_objects as go
             fig = go.Figure()
             for j, c in enumerate(["Adj. R²", "Mallows Cp", "BIC"]):
@@ -772,7 +804,7 @@ def _selection_tab(df):
         cols = st.columns(int(nb))
         for i in range(int(nb)):
             with cols[i]:
-                b = st.multiselect(tr(f"Block {i + 1}", f"الكتلة {i + 1}"), [c for c in cand if c not in used],
+                b = _ms(tr(f"Block {i + 1}", f"الكتلة {i + 1}"), [c for c in cand if c not in used],
                                    key=f"eco_h_b{i}")
                 used |= set(b)
                 blocks.append(b)
@@ -841,7 +873,7 @@ def _moderation_tab(df):
     with c3:
         m = st.selectbox(tr("Moderator W" if kind == "mod" else "Mediator M", "المتغير المعدِّل W" if kind == "mod" else "المتغير الوسيط M"),
                          [c for c in num if c not in (y, x)], key="eco_mm_m")
-    controls = st.multiselect(tr("Controls", "متغيرات ضابطة"), [c for c in num if c not in (y, x, m)], key="eco_mm_c")
+    controls = _ms(tr("Controls", "متغيرات ضابطة"), [c for c in num if c not in (y, x, m)], key="eco_mm_c")
     if kind == "mod":
         center = st.checkbox(tr("Mean-centre X and W", "طرح المتوسط من X وW"), True, key="eco_mm_center")
         cov = st.selectbox(tr("Standard errors", "الأخطاء المعيارية"), ["nonrobust", "HC3", "HC1"], key="eco_mm_cov",
@@ -852,7 +884,7 @@ def _moderation_tab(df):
             st.dataframe(_coef_display(r), width="stretch", hide_index=True)
             ss = rg.simple_slopes(r, x, m)
             st.markdown("**" + tr("Simple slopes of X at values of W", "الميول البسيطة لـ X عند قيم W") + "**")
-            st.dataframe(ss.round(4), width="stretch", hide_index=True)
+            st.dataframe(_ar_cols(ss.round(4)), width="stretch", hide_index=True)
             jn = rg.johnson_neyman(r, x, m)
             inter = f"{x}×{m}"
             p = r.pvalues[inter]
@@ -876,7 +908,7 @@ def _moderation_tab(df):
         if st.button(tr("Estimate mediation", "تقدير التأثير الوسيط"), key="eco_med_run"):
             with st.spinner(tr("Bootstrapping the indirect effect…", "جارٍ حساب البوتستراب للأثر غير المباشر…")):
                 out = rg.mediation(df, x, m, y, controls, reps=int(reps))
-            st.dataframe(out["table"].round(4), width="stretch", hide_index=True)
+            st.dataframe(_ar_cols(out["table"].round(4)), width="stretch", hide_index=True)
             lo, hi = out["boot_ci"]
             kind_txt = {"full": tr("full mediation", "وساطة كاملة"), "partial": tr("partial mediation", "وساطة جزئية"),
                         "none": tr("no mediation", "لا توجد وساطة")}[out["type"]]
@@ -955,7 +987,7 @@ def _tests_tab(df):
             st.success(tr("Saved.", "تم الحفظ."))
     st.markdown("---")
     st.markdown("**" + tr("Exclusion restrictions: F, Wald, LR and LM tests", "قيود الاستبعاد: اختبارات F ووالد ونسبة الإمكان ومضاعف لاجرانج") + "**")
-    drop = st.multiselect(tr("Coefficients jointly equal to zero", "معاملات تساوي الصفر معاً"), [n for n in r.names if n != "const"],
+    drop = _ms(tr("Coefficients jointly equal to zero", "معاملات تساوي الصفر معاً"), [n for n in r.names if n != "const"],
                           key="eco_t_drop")
     if drop and st.button(tr("Run tests", "إجراء الاختبارات"), key="eco_t_nest"):
         out = rg.nested_tests(df, r, drop)

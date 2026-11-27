@@ -42,6 +42,10 @@ def inject_custom_css():
         }
         [data-testid="stMain"] [data-testid="stDataFrame"],
         [data-testid="stMain"] .js-plotly-plot,
+        [data-testid="stMain"] textarea {
+            direction: rtl;
+            text-align: right;
+        }
         [data-testid="stMain"] code, [data-testid="stMain"] pre {
             direction: ltr;
             text-align: left;
