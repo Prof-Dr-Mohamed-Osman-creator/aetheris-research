@@ -317,6 +317,39 @@ def v18_blocks():
     return ["\n".join(L)]
 
 
+def v19_blocks():
+    """v1.9 — regression with SARIMA errors (Stata arima on seasonal differences) and a bridge equation (regress)."""
+    import numpy as np
+    import pandas as pd
+    from analytics import fcst as F
+    from analytics import nowcast as nc
+    from data.samples import monthly_forecast_demo, nowcast_demo
+    D = monthly_forecast_demo()
+    D.to_csv(OUT / "v19_monthly.csv", index=False)
+    a = F.sarimax(D.electricity_gwh.values, 6, (1, 0, 1), (0, 1, 1), 12, D[["temperature_c"]].values, np.full((6, 1), 25.0))
+    tb = a.info["table"].set_index("Parameter")["Coef."]
+    L = [f"\n* {'=' * 70}\n* v1.9 — forecasting (arima with seasonal differencing, bridge equation)\n* {'=' * 70}",
+         'import delimited "v19_monthly.csv", clear varnames(1) case(preserve)', "gen t = _n", "tsset t",
+         "quietly arima S12.electricity_gwh S12.temperature_c, ar(1) ma(1) mma(1, 12) noconstant",
+         "* Stata maximises the exact likelihood of the differenced data, as R Arima and Aetheris; optimisers may differ slightly.",
+         f'chk "ARIMAX temp" [S12.electricity_gwh]_b[S12.temperature_c] {float(tb["x1"])!r} 1e-3',
+         f'chk "ARIMAX ar1" [ARMA]_b[L.ar] {float(tb["ar.L1"])!r} 1e-3',
+         f'chk "ARIMAX ma1" [ARMA]_b[L.ma] {float(tb["ma.L1"])!r} 1e-2',
+         f'chk "ARIMAX sma1" [ARMA12]_b[L.ma] {float(tb["ma.S.L12"])!r} 1e-3']
+    N = nowcast_demo()
+    ind = ["industrial_production_mom", "pmi", "exports_mom", "retail_sales_mom"]
+    b = nc.bridge(N, "date", "gdp_growth_q", ind)
+    q = b["quarterly"].dropna(subset=ind + ["y"]).reset_index(drop=True)
+    q.to_csv(OUT / "v19_bridge.csv", index=False)
+    L += ['import delimited "v19_bridge.csv", clear varnames(1) case(preserve)', "quietly regress y " + " ".join(ind)]
+    for _, rw in b["table"].iterrows():
+        nm = "_cons" if rw.Parameter == "const" else rw.Parameter
+        L.append(f'chk "Bridge b[{rw.Parameter}]" _b[{nm}] {float(rw["Coef."])!r} 1e-6')
+        L.append(f'chk "Bridge se[{rw.Parameter}]" _se[{nm}] {float(rw["Std. Err."])!r} 1e-6')
+    del pd
+    return ["\n".join(L)]
+
+
 def main():
     farm = farm_survey_demo()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -371,6 +404,7 @@ def main():
     parts += v16_blocks()
     parts += v17_blocks()
     parts += v18_blocks()
+    parts += v19_blocks()
     parts += ['\ndisplay _n "Total failures: $fails"',
               'if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."']
     (OUT / "stata_check.do").write_text("\n".join(parts) + "\n", encoding="utf-8")

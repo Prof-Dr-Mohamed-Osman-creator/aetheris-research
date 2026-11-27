@@ -33,10 +33,10 @@ def _on_lang_change():
     set_language(st.session_state["lang_select"])
 
 
-WINGS = ["home", "data_hub", "descriptive", "inferential", "econometrics",
+WINGS = ["home", "data_hub", "descriptive", "inferential", "econometrics", "forecasting",
          "operations", "reports", "academy", "community"]
 WING_ICONS = {"home": "🏠", "data_hub": "📥", "descriptive": "📋", "inferential": "🧪",
-              "econometrics": "📐", "operations": "⚙️", "reports": "📄", "academy": "🎓", "community": "💬"}
+              "econometrics": "📐", "forecasting": "🔮", "operations": "⚙️", "reports": "📄", "academy": "🎓", "community": "💬"}
 
 # ------------------------------------------
 # Sidebar - Language + Navigation
@@ -115,6 +115,13 @@ if page == "home":
             "اختباراً تشخيصياً، والمتغيرات الأداتية والأنظمة، ونماذج الاستجابة النوعية والمراقَبة والاختيار، والعدّ والبقاء، "
             "وجذور الوحدة ومنهجية بوكس-جنكنز للتنبؤ (ARIMA وSARIMA وARFIMA)، والمرونات، وجداول المجلات، ومحاكاة «ماذا لو»، "
             "ونماذج VAR وVECM وARDL وNARDL وGARCH وDCC، والبيانات الطولية (الآثار الثابتة والعشوائية وجذور الوحدة والتكامل وGMM وPMG وCCE)، وكود Python وR وStata.")),
+        ("🔮", tr("Forecasting Studio", "استوديو التنبؤ"),
+         tr("Automatic model horse-race with rolling-origin backtests and Diebold-Mariano tests; ETS, theta, ARIMA / SARIMAX, state "
+            "space, BSTS and growth curves; nowcasting (bridge, MIDAS, dynamic factors), Bayesian VAR and local projections; HAR-RV, "
+            "GARCH and VaR backtests; machine learning and Prophet-style models; combinations, fan charts and scenarios.",
+            "مسابقة تلقائية بين النماذج مع اختبار تاريخي بالأصل المتدحرج واختبارات ديبولد-ماريانو؛ وETS وثيتا وARIMA/SARIMAX والفضاء "
+            "الحالتي وBSTS ومنحنيات النمو؛ والتنبؤ الآني (الجسر وMIDAS والعوامل الديناميكية)، وVAR البايزي والإسقاطات المحلية؛ وHAR-RV "
+            "وGARCH واختبار VaR؛ والتعلم الآلي ونماذج نمط Prophet؛ والتجميع ورسوم المروحة والسيناريوهات.")),
         ("⚙️", tr("Operations Research", "بحوث العمليات"),
          tr("Linear programming, transportation, efficiency (DEA) — in development.",
             "البرمجة الخطية، ومسائل النقل، وتحليل الكفاءة (DEA) — قيد التطوير.")),
@@ -179,6 +186,11 @@ elif page == "econometrics":
     st.header(t("econometrics"))
     from analytics.econometrics_ui import render_econometrics
     render_econometrics()
+
+elif page == "forecasting":
+    st.header(t("forecasting"))
+    from analytics.forecast_ui import render_forecasting
+    render_forecasting()
 
 elif page == "operations":
     st.header(t("operations"))

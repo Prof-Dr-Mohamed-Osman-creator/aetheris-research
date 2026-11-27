@@ -63,7 +63,10 @@ Catalogue §1.8–1.9: VAR / SVAR, Granger and Toda-Yamamoto causality, Johansen
 DOLS / CCR, VECM, ARDL bounds testing, NARDL, QARDL, the GARCH family and CCC / DCC / BEKK.
 
 ### ✅ Phase 4e — Panel data (v1.8)
-Catalogue §1.15: pooled / FE / RE / between / FD / FGLS with the full specification-test battery and cluster / Driscoll-Kraay / PCSE errors, panel unit roots and cointegration, Arellano-Bond and Blundell-Bond GMM, panel ARDL (PMG / MG / DFE), CCE, interactive fixed effects, panel threshold, panel VAR and Dumitrescu-Hurlin causality. Next: v1.9 — forecasting studio.
+Catalogue §1.15: pooled / FE / RE / between / FD / FGLS with the full specification-test battery and cluster / Driscoll-Kraay / PCSE errors, panel unit roots and cointegration, Arellano-Bond and Blundell-Bond GMM, panel ARDL (PMG / MG / DFE), CCE, interactive fixed effects, panel threshold, panel VAR and Dumitrescu-Hurlin causality.
+
+### ✅ Phase 4f — Forecasting Studio (v1.9)
+Catalogue §3.1–3.4 and §3.6: automatic model horse-race with rolling-origin evaluation, classical and state-space models, nowcasting (bridge, MIDAS, dynamic factors), BVAR and local projections, volatility and VaR forecasting, machine learning and Prophet-style models, combinations and scenario forecasts. Next: v1.10 — production, costs and efficiency; supply, demand and consumption (§2.7–2.8). Deep-learning and foundation-model forecasting (§3.5) is planned with the AI assistant.
 
 ### Phase 4 — Econometrics Lab (flagship, continuing)
 - **Cross-section:** OLS with full diagnostics (Breusch-Pagan/White, VIF, RESET, Jarque-Bera), robust & clustered SEs, Logit/Probit with marginal effects, quantile regression, IV/2SLS.
