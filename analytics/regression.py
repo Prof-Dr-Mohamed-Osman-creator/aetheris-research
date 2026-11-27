@@ -111,7 +111,7 @@ def _apply(s: pd.Series, how: str) -> pd.Series:
     return s
 
 
-def build_design(df: pd.DataFrame, spec: ModelSpec, info: dict | None = None) -> Design:
+def build_design(df: pd.DataFrame, spec: ModelSpec, info: dict | None = None, y_raw: bool = False) -> Design:
     """Build (y, X) from the original data. If `info` from a fitted design is passed, the same
     transformations, reference levels and centring constants are reused (for predictions / what-if)."""
     fit_mode = info is None
@@ -125,7 +125,11 @@ def build_design(df: pd.DataFrame, spec: ModelSpec, info: dict | None = None) ->
     d = df[used].copy()
 
     ytx = y_transform(form)
-    y = _apply(d[spec.y], ytx)
+    if y_raw:  # categorical / ordered outcomes for discrete-choice models
+        y = d[spec.y].where(d[spec.y].notna())
+        ytx = "level"
+    else:
+        y = _apply(d[spec.y], ytx)
     y_label = _tname(spec.y, ytx)
 
     cols: dict[str, pd.Series] = {}
@@ -209,7 +213,9 @@ def build_design(df: pd.DataFrame, spec: ModelSpec, info: dict | None = None) ->
                 kinds[iname], base[iname] = "inter", gname
 
     X = pd.DataFrame(cols, index=d.index)
-    ok = y.notna() & X.notna().all(axis=1) & np.isfinite(y)
+    ok = y.notna() & X.notna().all(axis=1)
+    if not y_raw:
+        ok &= np.isfinite(y)
     ok &= np.isfinite(X).all(axis=1)
     n_drop = int((~ok).sum())
     if n_drop:
@@ -328,7 +334,8 @@ class RegResult:
     def fit_stats(self) -> dict:
         return {"N": self.nobs, "R²": self.rsquared, "Adj. R²": self.rsquared_adj, "F": self.fvalue,
                 "Prob(F)": self.f_pvalue, "Log-likelihood": self.llf, "AIC": self.aic, "BIC": self.bic,
-                "HQIC": self.hqic, "Root MSE (σ̂)": self.sigma, "SSR": self.ssr, "df residual": self.df_resid}
+                "HQIC": self.hqic, "Root MSE (σ̂)": self.sigma, "SSR": self.ssr, "df residual": self.df_resid,
+                **self.extra.get("stats", {})}
 
 
 def stars(p, levels=(0.01, 0.05, 0.10)) -> str:
@@ -739,10 +746,9 @@ def design_rows(r: RegResult, values: pd.DataFrame) -> pd.DataFrame:
     """Design matrix for new data in the units of the original variables."""
     spec = r.design.spec
     v = values.copy()
-    if spec.y not in v.columns:
-        v[spec.y] = 1.0
+    v[spec.y] = 1.0   # the outcome is not needed to build prediction rows
     d = build_design(v, spec, info=r.design.info)
-    X = d.X.reindex(columns=r.names, fill_value=0.0)
+    X = d.X.reindex(columns=list(r.design.X.columns), fill_value=0.0)
     return X
 
 

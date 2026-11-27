@@ -59,3 +59,98 @@ def farm_survey_demo(seed: int = 7, n: int = 320) -> pd.DataFrame:
                          "education_years": educ, "experience_years": exper, "credit_access": credit,
                          "output_tonnes": output, "farm_price": price,
                          "revenue_k_egp": np.round(output * price, 1)})
+
+
+def household_survey_demo(seed: int = 15, n: int = 1500) -> pd.DataFrame:
+    """Synthetic farm-household survey for limited-dependent-variable, count and survival models:
+    technology adoption (binary), technology choice (multinomial), satisfaction (ordered), fertilizer
+    spending with zeros (Tobit / hurdle), off-farm wage observed only for participants (Heckman),
+    share of output sold (fractional), extension visits (count with excess zeros) and years until
+    adoption with right-censoring (survival)."""
+    rng = np.random.default_rng(seed)
+    region = rng.choice(["Delta", "Middle Egypt", "Upper Egypt", "New Lands"], n, p=[0.35, 0.25, 0.25, 0.15])
+    female_head = rng.binomial(1, 0.18, n)
+    educ = np.clip(np.round(rng.normal(7, 4, n)), 0, 18)
+    age = np.clip(np.round(rng.normal(46, 11, n)), 20, 80)
+    farm_size = np.round(rng.lognormal(1.0, 0.7, n), 2)
+    dist_market = np.round(rng.gamma(3, 4, n), 1)
+    credit = rng.binomial(1, 1 / (1 + np.exp(-(-1 + 0.08 * educ + 0.3 * np.log(farm_size)))), n)
+    hh_size = rng.integers(2, 12, n)
+    n_children = np.clip(hh_size - 2 - rng.integers(0, 3, n), 0, None)
+    reg_eff = pd.Series(region).map({"Delta": 0.3, "Middle Egypt": 0.1, "Upper Egypt": -0.2, "New Lands": 0.0}).to_numpy()
+    # extension visits: zero-inflated negative binomial
+    structural_zero = rng.random(n) < 1 / (1 + np.exp(-(0.2 + 0.06 * dist_market - 0.1 * educ)))
+    mu = np.exp(0.2 + 0.05 * educ + 0.25 * np.log(farm_size) - 0.03 * dist_market + 0.4 * credit + reg_eff)
+    visits = np.where(structural_zero, 0, rng.negative_binomial(2, 2 / (2 + mu)))
+    # adoption (probit latent index)
+    xb = -1.2 + 0.09 * educ + 0.35 * np.log(farm_size) + 0.5 * credit + 0.12 * np.minimum(visits, 8) \
+        - 0.03 * dist_market - 0.3 * female_head + reg_eff
+    adopt = (xb + rng.normal(size=n) > 0).astype(int)
+    # technology choice (multinomial logit utilities)
+    u_seed = 0.2 + 0.05 * educ + 0.3 * credit - 0.02 * dist_market + rng.gumbel(size=n)
+    u_drip = -1.5 + 0.08 * educ + 0.6 * np.log(farm_size) + 0.7 * credit + 0.3 * (region == "New Lands") + rng.gumbel(size=n)
+    u_trad = rng.gumbel(size=n)
+    choice = np.array(["Traditional", "Improved seed", "Drip irrigation"])[np.argmax(np.c_[u_trad, u_seed, u_drip], axis=1)]
+    # satisfaction with extension service (ordered logit, 1–5)
+    s_star = 0.25 * np.minimum(visits, 8) + 0.05 * educ - 0.02 * dist_market + 0.4 * adopt + rng.logistic(size=n)
+    satisfaction = np.digitize(s_star, [-0.5, 0.6, 1.6, 2.8]) + 1
+    # fertilizer spending: Tobit, censored at zero
+    f_star = -300 + 180 * np.log(farm_size) + 25 * educ + 220 * credit - 6 * dist_market + 350 * adopt + rng.normal(0, 260, n)
+    fert_spend = np.round(np.maximum(0, f_star), 1)
+    # off-farm work (selection) and wage (outcome); n_children is the exclusion restriction
+    u, v = rng.multivariate_normal([0, 0], [[1, 0.5], [0.5, 1]], n).T
+    works = (0.3 + 0.04 * educ - 0.02 * (age - 45) - 0.25 * n_children - 0.2 * np.log(farm_size) + 0.2 * female_head + v > 0)
+    ln_wage = 2.0 + 0.07 * educ + 0.02 * (age - 20) - 0.0003 * (age - 20) ** 2 - 0.15 * female_head + 0.35 * u
+    offfarm_wage = np.where(works, np.round(np.exp(ln_wage), 2), np.nan)
+    # share of output sold (fractional)
+    share = 1 / (1 + np.exp(-(-0.5 + 0.4 * np.log(farm_size) - 0.04 * dist_market + 0.3 * credit + 0.05 * educ
+                              + rng.normal(0, 0.6, n))))
+    share_sold = np.round(np.clip(np.where(rng.random(n) < 0.05, 0, share), 0, 1), 3)
+    # years until adoption (Weibull PH), censored at 10 years of observation
+    lam = np.exp(-3.3 + 0.08 * educ + 0.45 * credit + 0.25 * np.log(farm_size) - 0.02 * dist_market)
+    t = (-np.log(rng.random(n)) / lam) ** (1 / 1.3)
+    years = np.round(np.minimum(t, 10), 2)
+    adopted_event = (t <= 10).astype(int)
+    return pd.DataFrame({
+        "hh_id": np.arange(1, n + 1), "region": region, "female_head": female_head, "education_years": educ,
+        "age": age, "farm_size_feddan": farm_size, "distance_market_km": dist_market, "credit_access": credit,
+        "household_size": hh_size, "n_children": n_children, "extension_visits": visits, "adopt_technology": adopt,
+        "technology_choice": choice, "satisfaction_1to5": satisfaction, "fertilizer_spend_egp": fert_spend,
+        "works_offfarm": works.astype(int), "offfarm_wage_egp_day": offfarm_wage, "share_sold": share_sold,
+        "years_to_adoption": years, "adopted_by_end": adopted_event})
+
+
+def labour_iv_demo(seed: int = 21, n: int = 1200) -> pd.DataFrame:
+    """Synthetic wage data where education is endogenous (unobserved ability) and distance to college and
+    parents' schooling are instruments — for IV / 2SLS / LIML / GMM training."""
+    rng = np.random.default_rng(seed)
+    ability = rng.normal(size=n)
+    dist_college = np.round(rng.gamma(2, 15, n), 1)
+    father_educ = np.clip(np.round(rng.normal(8, 3.5, n)), 0, 20)
+    mother_educ = np.clip(np.round(0.5 * father_educ + rng.normal(4, 3, n)), 0, 20)
+    female = rng.binomial(1, 0.45, n)
+    urban = rng.binomial(1, 0.55, n)
+    exper = np.clip(np.round(rng.normal(15, 8, n)), 0, 40)
+    educ = np.clip(np.round(8 + 0.25 * father_educ + 0.15 * mother_educ - 0.04 * dist_college + 1.2 * ability
+                            + 0.8 * urban + rng.normal(0, 1.5, n)), 4, 22)
+    ln_wage = 1.0 + 0.075 * educ + 0.035 * exper - 0.0006 * exper ** 2 - 0.18 * female + 0.10 * urban \
+        + 0.12 * ability + rng.normal(0, 0.35 + 0.01 * exper, n)
+    return pd.DataFrame({"person_id": np.arange(1, n + 1), "wage_egp_hour": np.round(np.exp(ln_wage), 2),
+                         "education_years": educ, "experience_years": exper, "female": female, "urban": urban,
+                         "distance_college_km": dist_college, "father_education": father_educ,
+                         "mother_education": mother_educ, "region": rng.choice(["North", "South", "East", "West"], n)})
+
+
+def market_sem_demo(seed: int = 3, n: int = 60) -> pd.DataFrame:
+    """Synthetic annual market for a crop: demand and supply determined simultaneously.
+    Demand: Q = 120 − 2.0 P + 0.8 Income + u;  Supply: Q = 20 + 1.5 P + 0.4 Rainfall − 1.2 InputCost + v."""
+    rng = np.random.default_rng(seed)
+    year = np.arange(2026 - n, 2026)
+    income = 50 + 0.8 * np.arange(n) + rng.normal(0, 4, n)
+    rain = rng.normal(100, 20, n)
+    cost = 20 + 0.2 * np.arange(n) + rng.normal(0, 3, n)
+    u, v = rng.normal(0, 6, n), rng.normal(0, 5, n)
+    P = (120 + 0.8 * income + u - 20 - 0.4 * rain + 1.2 * cost - v) / (2.0 + 1.5)
+    Q = 20 + 1.5 * P + 0.4 * rain - 1.2 * cost + v
+    return pd.DataFrame({"year": year, "quantity": np.round(Q, 2), "price": np.round(P, 3),
+                         "income": np.round(income, 2), "rainfall": np.round(rain, 1), "input_cost": np.round(cost, 2)})
