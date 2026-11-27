@@ -111,7 +111,7 @@ def _apply(s: pd.Series, how: str) -> pd.Series:
     return s
 
 
-def build_design(df: pd.DataFrame, spec: ModelSpec, info: dict | None = None) -> Design:
+def build_design(df: pd.DataFrame, spec: ModelSpec, info: dict | None = None, y_raw: bool = False) -> Design:
     """Build (y, X) from the original data. If `info` from a fitted design is passed, the same
     transformations, reference levels and centring constants are reused (for predictions / what-if)."""
     fit_mode = info is None
@@ -125,7 +125,11 @@ def build_design(df: pd.DataFrame, spec: ModelSpec, info: dict | None = None) ->
     d = df[used].copy()
 
     ytx = y_transform(form)
-    y = _apply(d[spec.y], ytx)
+    if y_raw:  # categorical / ordered outcomes for discrete-choice models
+        y = d[spec.y].where(d[spec.y].notna())
+        ytx = "level"
+    else:
+        y = _apply(d[spec.y], ytx)
     y_label = _tname(spec.y, ytx)
 
     cols: dict[str, pd.Series] = {}
@@ -209,7 +213,9 @@ def build_design(df: pd.DataFrame, spec: ModelSpec, info: dict | None = None) ->
                 kinds[iname], base[iname] = "inter", gname
 
     X = pd.DataFrame(cols, index=d.index)
-    ok = y.notna() & X.notna().all(axis=1) & np.isfinite(y)
+    ok = y.notna() & X.notna().all(axis=1)
+    if not y_raw:
+        ok &= np.isfinite(y)
     ok &= np.isfinite(X).all(axis=1)
     n_drop = int((~ok).sum())
     if n_drop:
@@ -328,7 +334,8 @@ class RegResult:
     def fit_stats(self) -> dict:
         return {"N": self.nobs, "R²": self.rsquared, "Adj. R²": self.rsquared_adj, "F": self.fvalue,
                 "Prob(F)": self.f_pvalue, "Log-likelihood": self.llf, "AIC": self.aic, "BIC": self.bic,
-                "HQIC": self.hqic, "Root MSE (σ̂)": self.sigma, "SSR": self.ssr, "df residual": self.df_resid}
+                "HQIC": self.hqic, "Root MSE (σ̂)": self.sigma, "SSR": self.ssr, "df residual": self.df_resid,
+                **self.extra.get("stats", {})}
 
 
 def stars(p, levels=(0.01, 0.05, 0.10)) -> str:
@@ -471,12 +478,24 @@ def fit(df: pd.DataFrame, spec: ModelSpec, method: str = "ols", cov_type: str = 
         w = 1.0 / np.exp(aux.fittedvalues.to_numpy())
         res = _fit_cov(sm.WLS(y, X, weights=w), cov_type, cov_opts, n)
     elif method == "glsar":
-        model = sm.GLSAR(y, X, rho=1)
-        res0 = model.iterative_fit(maxiter=50)
-        if cov_type == "cluster":  # the AR(1) transformation drops the first observation
+        # Iterated Cochrane-Orcutt (1949), as Stata `prais, corc` and R orcutt::cochrane.orcutt:
+        # ρ̂ from eₜ on eₜ₋₁ (no constant), quasi-difference, re-estimate, until ρ̂ converges.
+        Xa, ya = X.to_numpy(float), y.to_numpy(float)
+        b = np.linalg.lstsq(Xa, ya, rcond=None)[0]
+        rho = 0.0
+        for _ in range(500):
+            e = ya - Xa @ b
+            rho_new = float(e[1:] @ e[:-1] / (e[:-1] @ e[:-1]))
+            ys, Xs = ya[1:] - rho_new * ya[:-1], Xa[1:] - rho_new * Xa[:-1]
+            b = np.linalg.lstsq(Xs, ys, rcond=None)[0]
+            done = abs(rho_new - rho) < 1e-10
+            rho = rho_new
+            if done:
+                break
+        if cov_type == "cluster":  # the transformation drops the first observation
             cov_opts = {**cov_opts, "groups": np.asarray(cov_opts["groups"])[1:]}
-        res = res0 if cov_type == "nonrobust" else _fit_cov(model, cov_type, cov_opts, n)
-        rho = float(np.squeeze(model.rho))
+        res = _fit_cov(sm.OLS(pd.Series(ys, index=y.index[1:]), pd.DataFrame(Xs, columns=X.columns, index=y.index[1:])),
+                       cov_type, cov_opts, n - 1)
     elif method in ("huber", "bisquare"):
         norm = sm.robust.norms.HuberT() if method == "huber" else sm.robust.norms.TukeyBiweight()
         res = sm.RLM(y, X, M=norm).fit()
@@ -490,7 +509,8 @@ def fit(df: pd.DataFrame, spec: ModelSpec, method: str = "ols", cov_type: str = 
         r = _from_sm(res, design, method, cov_type, name, cov_opts, weights=w)
     if method == "glsar":
         r.extra["rho"] = rho
-        r.notes.append(f"Estimated AR(1) coefficient ρ̂ = {rho:.4f}; the first observation is lost in the transformation.")
+        r.notes.append(f"Iterated Cochrane-Orcutt: ρ̂ = {rho:.4f}; R² and tests refer to the quasi-differenced model; "
+                       "the first observation is lost in the transformation.")
         sst = np.sum((r.y - r.y.mean()) ** 2)
         r.extra["raw_r2"] = 1 - np.sum(r.resid ** 2) / sst
     if w is not None:
@@ -624,7 +644,7 @@ def restricted_ls(df: pd.DataFrame, spec: ModelSpec, R: np.ndarray, q: np.ndarra
     kk = k - J
     r.aic, r.bic = -2 * llf + 2 * kk, -2 * llf + np.log(n) * kk
     r.hqic = -2 * llf + 2 * kk * np.log(np.log(n))
-    r.extra.update({"restrictions": labels or [], "F_restr": float(F), "p_restr": float(pF), "J": J,
+    r.extra.update({"R": np.asarray(R), "q": np.asarray(q), "restrictions": labels or [], "F_restr": float(F), "p_restr": float(pF), "J": J,
                     "unrestricted_params": pd.Series(b, index=names)})
     r.notes.append(f"Restrictions imposed: {'; '.join(labels or [])}. "
                    f"F-test of the restrictions: F({J}, {n - k}) = {F:.3f}, p = {pF:.4f}"
@@ -726,10 +746,9 @@ def design_rows(r: RegResult, values: pd.DataFrame) -> pd.DataFrame:
     """Design matrix for new data in the units of the original variables."""
     spec = r.design.spec
     v = values.copy()
-    if spec.y not in v.columns:
-        v[spec.y] = 1.0
+    v[spec.y] = 1.0   # the outcome is not needed to build prediction rows
     d = build_design(v, spec, info=r.design.info)
-    X = d.X.reindex(columns=r.names, fill_value=0.0)
+    X = d.X.reindex(columns=list(r.design.X.columns), fill_value=0.0)
     return X
 
 

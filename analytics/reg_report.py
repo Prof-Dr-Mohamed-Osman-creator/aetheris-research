@@ -205,7 +205,7 @@ def journal_table(results: list, labels: list | None = None, inner: str = "se", 
                 coef_row[lab] = inner_row[lab] = ""
         rows += [coef_row, inner_row]
     lab_ar = {"N": "عدد المشاهدات", "R²": "R²", "Adj. R²": "R² المعدل", "F": "إحصاءة F", "AIC": "AIC", "BIC": "BIC",
-              "Dependent variable": "المتغير التابع", "Estimator": "طريقة التقدير", "Std. errors": "الأخطاء المعيارية"}
+              "Dependent variable": "المتغير التابع", "Pseudo R²": "R² الزائف", "Log-likelihood": "لوغاريتم دالة الإمكان", "Estimator": "طريقة التقدير", "Std. errors": "الأخطاء المعيارية"}
     sep = {"": "—" * 3}
     sep.update({lab: "" for lab in labels})
     rows.append(sep)
@@ -231,7 +231,8 @@ def journal_table(results: list, labels: list | None = None, inner: str = "se", 
                  "p": ("p-values", "القيم الاحتمالية"), "ci": ("95% confidence intervals", "فترات الثقة 95%")}[inner]
     a, b_, c = star_levels
     if lang == "ar":
-        note = (f"ملاحظة: {inner_txt[1]} بين الأقواس. *** p < {a}، ** p < {b_}، * p < {c}. "
+        iso = lambda t: f"\u2066{t}\u2069"  # noqa: E731 — LTR isolate keeps "*** p < 0.01" readable in RTL text
+        note = (f"ملاحظة: {inner_txt[1]} بين الأقواس. {iso(f'*** p < {a}')}، {iso(f'** p < {b_}')}، {iso(f'* p < {c}')}. "
                 "المصدر: تقديرات الباحث باستخدام منصة Aetheris Research.")
     else:
         note = (f"Notes: {inner_txt[0]} in parentheses. *** p < {a}, ** p < {b_}, * p < {c}. "
@@ -265,14 +266,15 @@ def to_latex(table: pd.DataFrame, note: str, caption: str = "Regression results"
 
 
 def to_html(table: pd.DataFrame, note: str, caption: str = "") -> str:
-    head = "".join(f"<th style='border-bottom:1px solid #000;padding:3px 10px'>{c}</th>" for c in table.columns)
+    head = "".join(f"<th style='border-bottom:1px solid #000;padding:3px 10px'{'' if i == 0 else ' dir=ltr'}>{c}</th>"
+                   for i, c in enumerate(table.columns))
     body = []
     for _, row in table.iterrows():
         if str(row.iloc[0]).startswith("—"):
             body.append(f"<tr><td colspan='{len(row)}' style='border-top:1px solid #000'></td></tr>")
             continue
-        body.append("<tr>" + "".join(f"<td style='padding:1px 10px;text-align:{'left' if i == 0 else 'center'}'>{v}</td>"
-                                     for i, v in enumerate(row.values)) + "</tr>")
+        body.append("<tr>" + "".join(f"<td style='padding:1px 10px;text-align:{'start' if i == 0 else 'center'}'"
+                                     f"{'' if i == 0 else ' dir=ltr'}>{v}</td>" for i, v in enumerate(row.values)) + "</tr>")
     return (f"<table style='border-collapse:collapse;font-family:Times New Roman,serif;border-top:2px solid #000;"
             f"border-bottom:2px solid #000'><caption style='caption-side:top;font-weight:bold'>{caption}</caption>"
             f"<thead><tr>{head}</tr></thead><tbody>{''.join(body)}</tbody></table>"
@@ -715,11 +717,16 @@ def code_python(r: rg.RegResult, file_name: str = "your_data.csv") -> str:
            "bootstrap": "fit()  # bootstrap SEs: resample rows with replacement and refit (see Aetheris output)"}[cov]
     model = {"ols": "sm.OLS(y, X)", "wls": "sm.WLS(y, X, weights=w)  # w = your weights column",
              "fgls": "sm.WLS(y, X, weights=1 / np.exp(sm.OLS(np.log(sm.OLS(y, X).fit().resid ** 2), X).fit().fittedvalues))",
-             "glsar": "sm.GLSAR(y, X, rho=1)", "huber": "sm.RLM(y, X, M=sm.robust.norms.HuberT())",
+             "glsar": "sm.OLS(y, X)  # replaced below by the iterated Cochrane-Orcutt loop", "huber": "sm.RLM(y, X, M=sm.robust.norms.HuberT())",
              "bisquare": "sm.RLM(y, X, M=sm.robust.norms.TukeyBiweight())", "rls": "sm.OLS(y, X)"}.get(r.method, "sm.OLS(y, X)")
     L.append(f"model = {model}")
     if r.method == "glsar":
-        L.append("res = model.iterative_fit(maxiter=50)")
+        L += ["# iterated Cochrane-Orcutt", "b = np.linalg.lstsq(X, y, rcond=None)[0]; rho = 0.0",
+              "for _ in range(500):", "    e = y.values - X.values @ b",
+              "    rho_new = (e[1:] @ e[:-1]) / (e[:-1] @ e[:-1])",
+              "    ys, Xs = y.values[1:] - rho_new * y.values[:-1], X.values[1:] - rho_new * X.values[:-1]",
+              "    b = np.linalg.lstsq(Xs, ys, rcond=None)[0]", "    if abs(rho_new - rho) < 1e-10: break",
+              "    rho = rho_new", "res = sm.OLS(ys, pd.DataFrame(Xs, columns=X.columns)).fit()", 'print("rho =", rho_new)']
     elif r.method in ("huber", "bisquare"):
         L.append("res = model.fit()")
     else:
@@ -749,7 +756,7 @@ def code_r(r: rg.RegResult, file_name: str = "your_data.csv") -> str:
         how = hows.get(v, "level")
         e = {"log": f"log({q(v)})", "recip": f"1/{q(v)}"}.get(how, q(v))
         if v in means:
-            e = f"({e} - {means[v]:.6g})"
+            e = f"({e} - {means[v]!r})"
         return e
     ytx = r.design.info["ytx"]
     lhs = f"log({q(spec.y)})" if ytx == "log" else q(spec.y)
@@ -771,25 +778,43 @@ def code_r(r: rg.RegResult, file_name: str = "your_data.csv") -> str:
          f'df <- read.csv("{file_name}", check.names = FALSE)']
     call = {"ols": f"lm({f}, data = df)", "rls": f"lm({f}, data = df)",
             "wls": f"lm({f}, data = df, weights = w)  # w = your weights column",
-            "fgls": f"lm({f}, data = df, weights = 1 / exp(fitted(lm(log(resid(lm({f}, data = df))^2) ~ ., data = model.frame(lm({f}, data = df))[-1]))))",
+            "fgls": (f"lm({f}, data = df, weights = w_fgls)\n# FGLS weights (Harvey 1976) — defined before the line above:"),
             "glsar": f"orcutt::cochrane.orcutt(lm({f}, data = df))  # install.packages('orcutt')",
             "huber": f"MASS::rlm({f}, data = df, psi = MASS::psi.huber)",
             "bisquare": f"MASS::rlm({f}, data = df, psi = MASS::psi.bisquare)"}.get(r.method, f"lm({f}, data = df)")
+    if r.method == "fgls":
+        L += [f"m0 <- lm({f}, data = df)", "aux <- lm(log(resid(m0)^2) ~ model.matrix(m0) - 1)  # ln e² on all regressors",
+              "df$w_fgls <- NA; df[names(fitted(aux)), 'w_fgls'] <- 1 / exp(fitted(aux))"]
+        call = f"lm({f}, data = df, weights = w_fgls)"
     L.append(f"m <- {call}")
     vc = {"nonrobust": "vcov(m)", "HC0": 'vcovHC(m, type = "HC0")', "HC1": 'vcovHC(m, type = "HC1")',
           "HC2": 'vcovHC(m, type = "HC2")', "HC3": 'vcovHC(m, type = "HC3")',
-          "HAC": f"NeweyWest(m, lag = {r.cov_opts.get('maxlags', 1)}, prewhite = FALSE)",
+          "HAC": f"NeweyWest(m, lag = {r.cov_opts.get('maxlags', 1)}, prewhite = FALSE, adjust = TRUE)",
           "cluster": f"vcovCL(m, cluster = ~ {q(r.cov_opts.get('groups_name', 'cluster_var'))})",
           "bootstrap": "vcovBS(m, R = 999)"}[r.cov_type]
-    L += [f"V <- {vc}", "coeftest(m, vcov. = V)", "coefci(m, vcov. = V)", "summary(m)", "",
-          "# ---- diagnostics", "bptest(m)                      # Breusch-Pagan (Koenker)",
-          "bptest(m, ~ fitted(m) + I(fitted(m)^2))  # White (special form)", "gqtest(m, fraction = 0.2)",
-          "dwtest(m)                      # exact Durbin-Watson", "bgtest(m, order = 2)",
-          "Box.test(resid(m), lag = 10, type = 'Ljung-Box')", "resettest(m, power = 2:3, type = 'fitted')",
-          "jarque.bera.test(resid(m)); shapiro.test(resid(m))", "vif(m)",
-          "plot(efp(formula(m), data = df, type = 'Rec-CUSUM'))", "influence.measures(m)"]
+    if r.method == "glsar":
+        L += ["summary(m)   # Cochrane-Orcutt estimates, rho and transformed-model tests"]
+    else:
+        L += [f"V <- {vc}", "coeftest(m, vcov. = V)", "coefci(m, vcov. = V)", "summary(m)"]
+    diag = ["bptest(m)                       # Breusch-Pagan (Koenker)",
+            "bptest(m, ~ fitted(m) + I(fitted(m)^2))  # White (special form)",
+            "gqtest(m, fraction = 0.2, order.by = fitted(m))  # ordered by fitted values, as in Aetheris",
+            "dwtest(m)                       # exact Durbin-Watson (unweighted OLS only)", "bgtest(m, order = 2)",
+            "Box.test(resid(m), lag = 10, type = 'Ljung-Box')", "resettest(m, power = 2:3, type = 'fitted')",
+            "jarque.bera.test(resid(m))", "shapiro.test(resid(m))", "VIFCHECK",
+            "plot(efp(formula(m), data = df, type = 'Rec-CUSUM'))", "summary(influence.measures(m))"]
+    if r.method != "glsar":
+        L += ["", "# ---- diagnostics (each wrapped in try(): some tests do not apply to weighted / robust fits)"]
+        L += ["if (length(coef(m)) > 2) try(print(vif(m)))" if d == "VIFCHECK" else
+              f"try({d})" if d.startswith("plot") else
+              f"try(print({d.split('  #')[0].strip()}))" + (f"  #{d.split('  #', 1)[1]}" if "  #" in d else "")
+              for d in diag]
     if r.method == "rls":
-        L.append(f'linearHypothesis(m, c({", ".join(chr(34) + s + chr(34) for s in r.extra.get("restrictions", []))}))')
+        Rm = r.extra.get("R")
+        if Rm is not None:
+            rows = ", ".join("c(" + ", ".join(f"{v:g}" for v in row) + ")" for row in Rm)
+            L.append(f"# restrictions: {'; '.join(r.extra.get('restrictions', []))}  (coefficient order as in coef(m))")
+            L.append(f"linearHypothesis(m, hypothesis.matrix = rbind({rows}), rhs = c({', '.join(f'{v:g}' for v in r.extra['q'])}))")
     return "\n".join(L) + "\n"
 
 
@@ -798,7 +823,8 @@ def code_stata(r: rg.RegResult, file_name: str = "your_data.csv") -> str:
     hows = r.design.info["hows"]
     means = r.design.info["means"]
     S = _stata_name
-    L = [f'import delimited "{file_name}", clear varnames(1)', "* Variable names are converted to Stata-compatible names"]
+    L = [f'import delimited "{file_name}", clear varnames(1) case(preserve)',
+         "* Column names must be valid Stata names (letters, digits, _); rename them first if needed"]
     ytx = r.design.info["ytx"]
     yv = S(spec.y)
     if ytx == "log":
@@ -811,21 +837,25 @@ def code_stata(r: rg.RegResult, file_name: str = "your_data.csv") -> str:
         name = {"log": f"ln_{base}", "recip": f"inv_{base}"}.get(how, base)
         expr = {"log": f"ln({base})", "recip": f"1/{base}"}.get(how, base)
         if v in means:
-            expr = f"({expr}) - {means[v]:.6g}"
+            expr = f"({expr}) - {means[v]!r}"
             name = "c_" + name
         if name != base:
             L.append(f"gen {name[:32]} = {expr}")
         xs.append(name[:32])
         if int(spec.poly.get(v, 1)) >= 2:
             xs[-1] = f"c.{name[:32]}##c.{name[:32]}" if int(spec.poly[v]) == 2 else xs[-1]
+    fac = {}
     for c in spec.categorical:
         lv = r.design.info["levels"][c]
         ref_pos = sorted(lv, key=str).index(lv[0]) + 1
         L.append(f"encode {S(c)}, gen({S(c)[:28]}_n)   // reference level: {lv[0]}")
-        xs.append(f"ib{ref_pos}.{S(c)[:28]}_n")
+        fac[c] = f"ib{ref_pos}.{S(c)[:28]}_n"
+        xs.append(fac[c])
     for a, b in spec.interactions:
-        ta = f"i.{S(a)[:28]}_n" if a in spec.categorical else f"c.{xs[spec.x.index(a)].split('##')[0].replace('c.', '')}" if a in spec.x else f"c.{S(a)}"
-        tb = f"i.{S(b)[:28]}_n" if b in spec.categorical else f"c.{xs[spec.x.index(b)].split('##')[0].replace('c.', '')}" if b in spec.x else f"c.{S(b)}"
+        ta = fac[a] if a in spec.categorical else f"c.{xs[spec.x.index(a)].split('##')[0].replace('c.', '')}" if a in spec.x else f"c.{S(a)}"
+        tb = fac[b] if b in spec.categorical else f"c.{xs[spec.x.index(b)].split('##')[0].replace('c.', '')}" if b in spec.x else f"c.{S(b)}"
+        if b in spec.categorical and a not in spec.categorical:
+            ta, tb = tb, ta          # factor first: Stata then names the terms e.g. 2.irrigation_n#c.x
         xs.append(f"{ta}#{tb}")
     vce = {"nonrobust": "", "HC0": ", vce(robust)", "HC1": ", vce(robust)", "HC2": ", vce(hc2)", "HC3": ", vce(hc3)",
            "cluster": f", vce(cluster {S(r.cov_opts.get('groups_name', 'cluster_var'))})",
@@ -836,14 +866,17 @@ def code_stata(r: rg.RegResult, file_name: str = "your_data.csv") -> str:
     elif r.method == "wls":
         L.append(f"regress {yv} {rhs} [aweight = w]{vce}  // w = your weights variable")
     elif r.method in ("huber", "bisquare"):
-        L.append(f"rreg {yv} {rhs}")
+        L.append(f"rreg {yv} {rhs}   // note: Stata's rreg combines Huber and biweight iterations; "
+                 "for the exact Huber / bisquare M-estimator use the user-written -robreg m- (ssc install robreg)")
     elif r.method == "glsar":
         L += ["gen t = _n", "tsset t", f"prais {yv} {rhs}, corc"]
     else:
         L.append(f"regress {yv} {rhs}{vce}")
     if r.method in ("ols", "rls", "fgls") and r.cov_type in ("nonrobust",):
-        L += ["estat hettest            // Breusch-Pagan", "estat hettest, iid      // Koenker",
-              "estat imtest, white      // White", "estat ovtest             // RESET", "estat vif",
+        L += ["estat hettest, rhs        // Breusch-Pagan on all regressors (Aetheris 'original')",
+              "estat hettest, rhs iid    // Koenker studentized version (Aetheris default)",
+              "estat imtest, white      // White", "estat ovtest             // RESET with yhat^2..yhat^4 (Aetheris: choose power 4 to match)",
+              "estat vif",
               "predict e, resid", "sktest e", "swilk e", "predict cooksd, cooksd", "dfbeta",
               "gen t = _n", "tsset t", "estat dwatson", "estat bgodfrey, lags(1 2)"]
     else:

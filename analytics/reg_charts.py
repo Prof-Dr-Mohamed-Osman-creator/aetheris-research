@@ -19,6 +19,17 @@ from analytics.charts import PALETTES, style_academic
 
 PAL = PALETTES["academic"]
 
+AXIS_AR = {"Fitted": "القيم المقدَّرة", "Theoretical quantiles": "الكميات النظرية", "Leverage": "الرفع",
+           "Predicted": "القيم المتنبأ بها", "Observed": "القيم المشاهدة", "Residual": "البواقي", "Density": "الكثافة",
+           "Lag": "الإبطاء", "ACF of residuals": "دالة الارتباط الذاتي للبواقي", "Observation": "المشاهدة",
+           "Coefficient (95% CI)": "المعامل (فترة الثقة 95%)", "Profile log-likelihood": "لوغاريتم دالة الإمكان الجانبية",
+           "95% prediction band": "نطاق التنبؤ 95%", "95% confidence band": "نطاق الثقة 95%", "Fitted line": "الخط المقدَّر",
+           "Predicted line": "القيم المتنبأ بها", "NLS fit": "منحنى NLS", "Conditional effect of": "الأثر الشرطي لـ"}
+
+
+def _a(text: str, rtl: bool) -> str:
+    return AXIS_AR.get(text, text) if rtl else text
+
 
 def _lowess(x, y, frac=0.6):
     try:
@@ -69,15 +80,16 @@ def residual_panel(r: rg.RegResult, rtl=False, labels=None) -> go.Figure:
                                      hoverinfo="skip"), 2, 2)
     lim = max(3.5, np.abs(rs).max() * 1.1)
     fig.update_yaxes(range=[-lim, lim], row=2, col=2)
-    fig.update_xaxes(title_text="Fitted", row=1, col=1)
-    fig.update_xaxes(title_text="Theoretical quantiles", row=1, col=2)
-    fig.update_xaxes(title_text="Fitted", row=2, col=1)
-    fig.update_xaxes(title_text="Leverage", row=2, col=2)
+    fig.update_xaxes(title_text=_a("Fitted", rtl), row=1, col=1)
+    fig.update_xaxes(title_text=_a("Theoretical quantiles", rtl), row=1, col=2)
+    fig.update_xaxes(title_text=_a("Fitted", rtl), row=2, col=1)
+    fig.update_xaxes(title_text=_a("Leverage", rtl), row=2, col=2)
     style_academic(fig, height=720, legend="none", rtl=rtl)
     return fig
 
 
-def actual_vs_fitted(r: rg.RegResult, x_axis=None, x_title="Observation", rtl=False, names=("Actual", "Fitted")) -> go.Figure:
+def actual_vs_fitted(r: rg.RegResult, x_axis=None, x_title=None, rtl=False, names=("Actual", "Fitted")) -> go.Figure:
+    x_title = x_title or _a("Observation", rtl)
     x = np.arange(1, r.nobs + 1) if x_axis is None else np.asarray(x_axis)
     o = np.argsort(x, kind="stable")
     fig = go.Figure()
@@ -94,7 +106,7 @@ def observed_vs_predicted(r: rg.RegResult, rtl=False) -> go.Figure:
     fig.add_trace(go.Scatter(x=r.fitted, y=r.y, mode="markers", marker=dict(color=PAL[0], size=6, opacity=0.6)))
     lo, hi = float(min(r.fitted.min(), r.y.min())), float(max(r.fitted.max(), r.y.max()))
     fig.add_trace(go.Scatter(x=[lo, hi], y=[lo, hi], mode="lines", line=dict(color=PAL[1], dash="dash")))
-    style_academic(fig, x_title="Predicted", y_title="Observed", height=420, legend="none", rtl=rtl)
+    style_academic(fig, x_title=_a("Predicted", rtl), y_title=_a("Observed", rtl), height=420, legend="none", rtl=rtl)
     return fig
 
 
@@ -105,7 +117,7 @@ def residual_hist(r: rg.RegResult, rtl=False) -> go.Figure:
     g = np.linspace(e.min(), e.max(), 200)
     fig.add_trace(go.Scatter(x=g, y=stats.norm.pdf(g, e.mean(), e.std(ddof=1)), mode="lines",
                              line=dict(color=PAL[1], width=2)))
-    style_academic(fig, x_title="Residual", y_title="Density", height=380, legend="none", rtl=rtl)
+    style_academic(fig, x_title=_a("Residual", rtl), y_title=_a("Density", rtl), height=380, legend="none", rtl=rtl)
     return fig
 
 
@@ -115,7 +127,7 @@ def acf_plot(acf: np.ndarray, n: int, rtl=False) -> go.Figure:
     fig = go.Figure(go.Bar(x=lags, y=acf, marker_color=PAL[0], width=0.3))
     fig.add_hline(y=band, line=dict(color=PAL[1], dash="dash"))
     fig.add_hline(y=-band, line=dict(color=PAL[1], dash="dash"))
-    style_academic(fig, x_title="Lag", y_title="ACF of residuals", height=340, legend="none", rtl=rtl)
+    style_academic(fig, x_title=_a("Lag", rtl), y_title=_a("ACF of residuals", rtl), height=340, legend="none", rtl=rtl)
     return fig
 
 
@@ -128,7 +140,7 @@ def cusum_plots(cs: dict, rtl=False, titles=("CUSUM", "CUSUM of squares")) -> go
     fig.add_trace(go.Scatter(x=p["t"], y=p["CUSUMSQ"], mode="lines", line=dict(color=PAL[0], width=2)), 1, 2)
     for c in ("sq_lower", "sq_upper"):
         fig.add_trace(go.Scatter(x=p["t"], y=p[c], mode="lines", line=dict(color=PAL[1], dash="dash")), 1, 2)
-    fig.update_xaxes(title_text="Observation")
+    fig.update_xaxes(title_text=_a("Observation", rtl))
     style_academic(fig, height=400, legend="none", rtl=rtl)
     return fig
 
@@ -152,7 +164,7 @@ def coef_plot(results: list, labels: list, drop_const=True, rtl=False) -> go.Fig
                                               thickness=1.6, width=4)))
     fig.add_vline(x=0, line=dict(color="#777", dash="dot"))
     fig.update_yaxes(tickvals=list(range(len(names))), ticktext=names, autorange="reversed")
-    style_academic(fig, x_title="Coefficient (95% CI)", height=max(320, 42 * len(names) + 120),
+    style_academic(fig, x_title=_a("Coefficient (95% CI)", rtl), height=max(320, 42 * len(names) + 120),
                    legend="bottom" if len(results) > 1 else "none", rtl=rtl)
     return fig
 
@@ -178,11 +190,11 @@ def effect_curve(df: pd.DataFrame, r: rg.RegResult, var: str, by: str | None = N
         fig.add_trace(go.Scatter(x=np.r_[grid, grid[::-1]], y=np.r_[p["ci_high"], p["ci_low"][::-1]], fill="toself",
                                  fillcolor=col, opacity=0.15, line=dict(width=0), hoverinfo="skip", showlegend=False))
         fig.add_trace(go.Scatter(x=grid, y=p["fit"], mode="lines", line=dict(color=col, width=2.5),
-                                 name=str(lv) if lv is not None else "Predicted"))
+                                 name=str(lv) if lv is not None else _a("Predicted", rtl)))
     if show_points:
         yraw = pd.to_numeric(df.loc[r.design.index, r.design.spec.y], errors="coerce")
         fig.add_trace(go.Scatter(x=raw, y=yraw, mode="markers", marker=dict(color="#888", size=4, opacity=0.3),
-                                 name="Observed", showlegend=False))
+                                 name=_a("Observed", rtl), showlegend=False))
     style_academic(fig, x_title=var, y_title=r.design.spec.y, height=440,
                    legend="bottom" if by else "none", rtl=rtl)
     return fig
@@ -198,11 +210,11 @@ def slr_bands(df: pd.DataFrame, r: rg.RegResult, var: str, rtl=False) -> go.Figu
     p = rg.predict(r, vals)
     yraw = pd.to_numeric(df.loc[r.design.index, r.design.spec.y], errors="coerce")
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=raw, y=yraw, mode="markers", marker=dict(color=PAL[0], size=6, opacity=0.55), name="Observed"))
-    for lo, hi, nm, op in (("pi_low", "pi_high", "95% prediction band", 0.10), ("ci_low", "ci_high", "95% confidence band", 0.25)):
+    fig.add_trace(go.Scatter(x=raw, y=yraw, mode="markers", marker=dict(color=PAL[0], size=6, opacity=0.55), name=_a("Observed", rtl)))
+    for lo, hi, nm, op in (("pi_low", "pi_high", _a("95% prediction band", rtl), 0.10), ("ci_low", "ci_high", _a("95% confidence band", rtl), 0.25)):
         fig.add_trace(go.Scatter(x=np.r_[grid, grid[::-1]], y=np.r_[p[hi], p[lo][::-1]], fill="toself", fillcolor=PAL[1],
                                  opacity=op, line=dict(width=0), name=nm))
-    fig.add_trace(go.Scatter(x=grid, y=p["fit"], mode="lines", line=dict(color=PAL[1], width=2.5), name="Fitted"))
+    fig.add_trace(go.Scatter(x=grid, y=p["fit"], mode="lines", line=dict(color=PAL[1], width=2.5), name=_a("Fitted", rtl)))
     style_academic(fig, x_title=var, y_title=r.design.spec.y, height=460, rtl=rtl)
     return fig
 
@@ -215,7 +227,7 @@ def boxcox_profile(bc: dict, rtl=False) -> go.Figure:
     fig.add_vline(x=bc["lambda"], line=dict(color=PAL[2]), annotation_text=f"λ̂ = {bc['lambda']:.3f}")
     for v in (0, 1):
         fig.add_vline(x=v, line=dict(color="#999", dash="dot"))
-    style_academic(fig, x_title="λ", y_title="Profile log-likelihood", height=400, legend="none", rtl=rtl)
+    style_academic(fig, x_title=_a("λ", rtl), y_title=_a("Profile log-likelihood", rtl), height=400, legend="none", rtl=rtl)
     return fig
 
 
@@ -229,7 +241,7 @@ def jn_plot(jn: dict, moderator: str, focal: str, rtl=False) -> go.Figure:
     for rt in jn["roots"]:
         if jn["range"][0] <= rt <= jn["range"][1]:
             fig.add_vline(x=rt, line=dict(color=PAL[1], dash="dash"), annotation_text=f"{rt:.3g}")
-    style_academic(fig, x_title=moderator, y_title=f"Conditional effect of {focal}", height=420, legend="none", rtl=rtl)
+    style_academic(fig, x_title=moderator, y_title=f"{_a('Conditional effect of', rtl)} {focal}", height=420, legend="none", rtl=rtl)
     return fig
 
 
@@ -257,8 +269,8 @@ def nls_curve(r: rg.RegResult, rtl=False) -> go.Figure:
     g = np.linspace(x.min(), x.max(), 200)
     f = r.extra["fun"]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=x, y=y, mode="markers", marker=dict(color=PAL[0], size=6, opacity=0.6), name="Observed"))
+    fig.add_trace(go.Scatter(x=x, y=y, mode="markers", marker=dict(color=PAL[0], size=6, opacity=0.6), name=_a("Observed", rtl)))
     fig.add_trace(go.Scatter(x=g, y=f(g, *r.params.to_numpy()), mode="lines", line=dict(color=PAL[1], width=2.5),
-                             name="NLS fit"))
+                             name=_a("NLS fit", rtl)))
     style_academic(fig, x_title=r.extra["x_name"], y_title=r.extra["y_label"], height=440, rtl=rtl)
     return fig

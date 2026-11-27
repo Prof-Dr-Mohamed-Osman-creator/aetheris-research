@@ -46,10 +46,11 @@ def _slopes(X: np.ndarray) -> np.ndarray:
 
 
 def _row(group, test, test_ar, stat, df, p, h0, h0_ar, ok=None, note=""):
+    note, note_ar = (note if isinstance(note, tuple) else (note, note))
     if ok is None and p is not None and not pd.isna(p):
         ok = p >= ALPHA
     return {"group": group, "Test": test, "Test_ar": test_ar, "Statistic": stat, "df": df, "p-value": p,
-            "H0": h0, "H0_ar": h0_ar, "ok": ok, "note": note}
+            "H0": h0, "H0_ar": h0_ar, "ok": ok, "note": note, "note_ar": note_ar}
 
 
 # ==========================================================
@@ -519,7 +520,8 @@ def run_all(r, lb_lags: int | None = None, bg_lags: int = 2, reset_power: int = 
         ytarget = (X @ r.params.to_numpy() + e) if linear else np.asarray(r.y, float)
         gq = goldfeld_quandt(ytarget, X, zvar)
         rows.append(_row(g, *TEST_LABELS["gq"], gq["stat"], gq["df"], gq["p"], h0, h0a,
-                         note=f"ordered by {'fitted values' if gq_by is None else 'selected variable'}, central {gq.get('omitted', 0)} obs omitted"))
+                         note=(f"ordered by {'fitted values' if gq_by is None else 'selected variable'}, central {gq.get('omitted', 0)} obs omitted",
+                               f"مرتبة حسب {'القيم المقدَّرة' if gq_by is None else 'المتغير المختار'}، مع حذف {gq.get('omitted', 0)} مشاهدة وسطى")))
 
     # --- autocorrelation
     g = "autocorr"
@@ -527,7 +529,7 @@ def run_all(r, lb_lags: int | None = None, bg_lags: int = 2, reset_power: int = 
     note = "" if time_ordered else "data order may not be meaningful"
     dw = durbin_watson_exact(e, X) if linear else {"stat": durbin_watson(e), "p": np.nan, "rho_hat": np.nan}
     rows.append(_row(g, *TEST_LABELS["dw"], dw["stat"], None, dw["p"], h0, h0a,
-                     note=(f"ρ̂ ≈ {dw['rho_hat']:.3f}" + (f"; {note}" if note else ""))))
+                     note=(f"ρ̂ ≈ {dw['rho_hat']:.3f}", f"ρ̂ ≈ {dw['rho_hat']:.3f}")))
     detail["dw"] = dw
     for L in sorted({1, bg_lags}):
         bg = breusch_godfrey(e, X, L)
@@ -540,7 +542,7 @@ def run_all(r, lb_lags: int | None = None, bg_lags: int = 2, reset_power: int = 
     detail["acf"] = lb["acf"]
     if lagged_y and lagged_y in names:
         dh = durbin_h(e, X, float(r.bse[lagged_y]), dw["stat"])
-        rows.append(_row(g, *TEST_LABELS["dh"], dh["stat"], None, dh["p"], h0, h0a, note=dh.get("note", "")))
+        rows.append(_row(g, *TEST_LABELS["dh"], dh["stat"], None, dh["p"], h0, h0a, note=(dh.get("note", ""), "n·Var(b_lag) ≥ 1: إحصاءة h غير معرَّفة — استخدم بروش-جودفري." if dh.get("note") else "")))
 
     # --- specification & stability
     g = "spec"
@@ -559,16 +561,18 @@ def run_all(r, lb_lags: int | None = None, bg_lags: int = 2, reset_power: int = 
             cs = cusum(ytarget, X)
             detail["cusum"] = cs
             rows.append(_row(g, *TEST_LABELS["cusum"], cs["cusum_max"], None, None, h0, h0a, ok=cs["cusum_ok"],
-                             note="max |W|/bound (≤ 1 = stable at 5%)"))
+                             note=("max |W|/bound (≤ 1 = stable at 5%)", "أقصى |W|/الحد (≤ 1 = مستقر عند 5%)")))
             rows.append(_row(g, *TEST_LABELS["cusumsq"], cs["sq_max"], None, None, h0, h0a, ok=cs["cusumsq_ok"],
-                             note=f"max deviation; 5% critical value c₀ = {cs['c0']:.3f}"))
+                             note=(f"max deviation; 5% critical value c₀ = {cs['c0']:.3f}",
+                                   f"أقصى انحراف؛ القيمة الحرجة عند 5% c₀ = {cs['c0']:.3f}")))
 
     # --- normality
     g = "normality"
     h0, h0a = GROUPS[g][2], GROUPS[g][3]
     for t in normality(e):
         rows.append(_row(g, *TEST_LABELS[t["key"]], t["stat"], t["df"], t["p"], h0, h0a,
-                         note=(f"skewness = {t['skew']:.3f}, kurtosis = {t['kurt']:.3f}" if t["key"] == "jb" else "")))
+                         note=((f"skewness = {t['skew']:.3f}, kurtosis = {t['kurt']:.3f}",
+                               f"الالتواء = {t['skew']:.3f}، التفلطح = {t['kurt']:.3f}") if t["key"] == "jb" else "")))
         if t["key"] == "jb":
             detail["skew"], detail["kurt"] = t["skew"], t["kurt"]
 
@@ -593,7 +597,8 @@ def run_all(r, lb_lags: int | None = None, bg_lags: int = 2, reset_power: int = 
         share = float((inf["Cook's D"] > 4 / n).mean())
         rows.append(_row(g, *TEST_LABELS["infl"], int((inf["Cook's D"] > 4 / n).sum()), None, None,
                          GROUPS[g][2], GROUPS[g][3], ok=share <= 0.05,
-                         note=f"{share:.1%} of sample; max Cook's D = {inf["Cook's D"].max():.3f}"))
+                         note=(f"{share:.1%} of sample; max Cook's D = {inf["Cook's D"].max():.3f}",
+                               f"{share:.1%} من العينة؛ أقصى مسافة كوك = {inf["Cook's D"].max():.3f}")))
 
     tab = pd.DataFrame(rows)
     if not time_ordered:  # autocorrelation / stability tests are informational for unordered cross-sections
@@ -601,6 +606,7 @@ def run_all(r, lb_lags: int | None = None, bg_lags: int = 2, reset_power: int = 
         mask = tab["group"].eq("autocorr") | tab["Test"].str.startswith(("CUSUM", "Chow"))
         tab.loc[mask, "ok"] = None
         tab.loc[mask, "note"] = tab.loc[mask, "note"].astype(str) + " [informational: observations not time-ordered]"
+        tab.loc[mask, "note_ar"] = tab.loc[mask, "note_ar"].astype(str) + " [للعلم فقط: المشاهدات غير مرتبة زمنياً]"
     problems = {}
     for g in GROUPS:
         sub = tab[tab["group"] == g]
