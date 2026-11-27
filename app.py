@@ -107,8 +107,10 @@ if page == "home":
          tr("Test Advisor, 30+ parametric & non-parametric tests, post-hoc, effect sizes, power & sample size.",
             "مستشار الاختبارات، وأكثر من 30 اختباراً معلمياً ولامعلمياً، والمقارنات البعدية، وأحجام الأثر، والقوة وحجم العينة.")),
         ("📐", tr("Econometrics Lab", "مختبر الاقتصاد القياسي"),
-         tr("Regression, panel data, time series and causal inference (in development).",
-            "الانحدار، وبيانات البانل، والسلاسل الزمنية، والاستدلال السببي (قيد التطوير).")),
+         tr("Regression with 5 functional forms, OLS/WLS/FGLS/GLS/robust/RLS/NLS, robust SEs, 25+ diagnostics, "
+            "elasticities, journal tables, policy what-if and Python/R/Stata code. Panel & time series next.",
+            "الانحدار بخمس صور دالية، وOLS وWLS وFGLS وGLS والمتين والمقيد وغير الخطي، والأخطاء المتينة، وأكثر من 25 "
+            "اختباراً تشخيصياً، والمرونات، وجداول المجلات، ومحاكاة «ماذا لو»، وكود Python وR وStata. البانل والسلاسل الزمنية قادمة.")),
         ("⚙️", tr("Operations Research", "بحوث العمليات"),
          tr("Linear programming, transportation, efficiency (DEA) — in development.",
             "البرمجة الخطية، ومسائل النقل، وتحليل الكفاءة (DEA) — قيد التطوير.")),
@@ -171,9 +173,8 @@ elif page == "inferential":
 
 elif page == "econometrics":
     st.header(t("econometrics"))
-    _coming_soon("OLS with full diagnostics, panel models (FE/RE, Hausman), ARDL & cointegration, VAR — in development.",
-                 "انحدار المربعات الصغرى مع التشخيص الكامل، ونماذج البانل (الأثر الثابت والعشوائي واختبار هاوسمان)، "
-                 "وARDL والتكامل المشترك، وVAR — قيد التطوير.")
+    from analytics.econometrics_ui import render_econometrics
+    render_econometrics()
 
 elif page == "operations":
     st.header(t("operations"))

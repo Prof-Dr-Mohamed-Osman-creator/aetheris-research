@@ -17,13 +17,14 @@ A complete research workflow inside one integrated environment:
 
 ## Current Status
 
-- Version: `1.3.0-alpha`
+- Version: `1.4.0-alpha`
 - Live: https://aetheris-research.streamlit.app
 - Languages: English + Arabic (full RTL support)
 - ✅ Data Hub: file upload, World Bank WDI, FRED, Data Basket (multi-dataset memory + merge)
 - ✅ Descriptive Statistics wing: 40 measures in 6 groups (central tendency, dispersion, shape, position, concentration), Gini & Lorenz, automatic academic interpretation, CSV/Excel export
 - ✅ Academic Chart Builder: 17 chart types, journal styling, figure numbering & source notes, 300-dpi PNG / SVG / HTML export
 - ✅ Inferential Statistics wing: Test Advisor, 30+ parametric & non-parametric tests, post-hoc (Tukey, Games-Howell, Dunn) with compact letters, two-way & repeated-measures ANOVA, effect sizes, APA reporting, bootstrap CIs, power & sample size (G*Power-validated), survey sample size
+- ✅ **Econometrics Lab (v1.4 — catalogue §1.1 + §1.3):** guided & expert regression builder; 5 functional forms + Box-Cox; dummies/ANCOVA, polynomials, interactions (simple slopes, Johnson-Neyman), mediation (Sobel + bootstrap); stepwise, best subsets, hierarchical; OLS, WLS, FGLS, GLS-AR(1), robust M (Huber/Tukey), restricted LS, nonlinear LS; HC0–HC3, Newey-West, cluster & bootstrap SEs; 25+ diagnostics (BP/Koenker, White, Glejser, Park, Goldfeld-Quandt, exact Durbin-Watson, Breusch-Godfrey, Ljung-Box, Durbin h, RESET, Chow, CUSUM/CUSUMSQ, JB/SW/K²/AD, VIF & Belsley, Cook/DFFITS/DFBETAS); Wald/LR/LM; elasticities & marginal effects (delta method); journal-style multi-model tables; bilingual interpretation; policy brief + what-if; methodology paragraph with APA references; Excel / Word / LaTeX export and reproducible Python / R / Stata code. Validated against statsmodels in `tests/test_regression.py`.
 - Strategic plan: see [ROADMAP.md](ROADMAP.md) · Full model catalogue: [docs/MODEL_CATALOG.md](docs/MODEL_CATALOG.md)
 
 ## Project Structure
@@ -50,6 +51,11 @@ aetheris-research/
 │   ├── inferential.py         # Hypothesis tests, post-hoc, effect sizes, CIs (pure, tested)
 │   ├── inferential_ui.py      # Inferential Statistics wing + Test Advisor
 │   ├── power.py               # Power analysis & sample size
+│   ├── regression.py          # Regression engine §1.1 (pure, tested)
+│   ├── diagnostics.py         # Full diagnostic battery §1.3 (pure, tested)
+│   ├── reg_report.py          # Journal tables, elasticities, interpretation, what-if, methodology, code export
+│   ├── reg_charts.py          # Residual / influence / CUSUM / effect charts
+│   ├── econometrics_ui.py     # Econometrics Lab wing
 │   ├── charts.py              # Academic chart engine (17 chart types)
 │   └── chart_builder_ui.py    # Chart Builder
 ├── tests/                     # Unit tests (pytest)
