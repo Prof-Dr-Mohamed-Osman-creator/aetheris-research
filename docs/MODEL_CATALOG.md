@@ -326,7 +326,7 @@
 | البحث أحادي البعد: النسبة الذهبية، وفيبوناتشي، والتنصيف | Line search: golden section, Fibonacci, bisection |
 | الأمثلية المقيدة: مضاعفات لاجرانج، وشروط كاروش-كون-تاكر (KKT) | Lagrange multipliers, KKT conditions |
 | البرمجة التربيعية (ومنها محفظة ماركوفيتز وMOTAD)، والبرمجة القابلة للفصل والكسرية والهندسية والمحدبة | Quadratic, separable, fractional, geometric, convex programming |
-| الخوارزميات الاستدلالية والميتا-استدلالية: الخوارزمية الجينية، والتلدين المحاكى، والبحث المحظور، وسرب الجسيمات | Metaheuristics: GA, simulated annealing, tabu search, PSO |
+| الخوارزميات ما وراء الاستدلالية: انظر المحور 5.15 | Metaheuristics: see 5.15 |
 
 ### 5.3 برمجة الأهداف وتعدد الأهداف — Goal & Multi-objective Programming
 | النموذج / الطريقة | Model / method |
@@ -355,7 +355,7 @@
 | الحالات الخاصة: غير المتوازنة، والانحلال، والمسارات الممنوعة، وتعظيم الربح | Unbalanced, degeneracy, prohibited routes, maximisation |
 | مسائل الشحن العابر (Transshipment) | Transshipment |
 | التخصيص: **الطريقة المجرية**، وغير المتوازن، والتعظيم، والقيود | Hungarian method and variants |
-| البائع المتجول وتوجيه المركبات (VRP) | TSP, vehicle routing |
+| البائع المتجول وتوجيه المركبات: انظر المحور 5.16 | TSP & VRP: see 5.16 |
 
 ### 5.6 نظرية الألعاب ونماذج التفاعل الاستراتيجي — Game Theory & Strategic Interaction
 | النموذج / الطريقة | Model / method |
@@ -413,7 +413,7 @@
 | عمليات القرار الماركوفية (MDP): تكرار القيمة وتكرار السياسة | Markov decision processes |
 | **البرمجة الديناميكية**: الحقيبة، وتوزيع الموارد، وأقصر مسار متعدد المراحل، وجدولة المخزون والإنتاج، واستبدال المعدات | Dynamic programming: knapsack, resource allocation, staged shortest path, production–inventory, equipment replacement |
 | البرمجة الديناميكية العشوائية | Stochastic dynamic programming |
-| **البرمجة العشوائية**: النموذج ذو المرحلتين مع التعويض، والبرمجة بقيود احتمالية (Chance-constrained)، والمبنية على السيناريوهات، و**الأمثلية المتينة** (Robust optimization) | Two-stage recourse, chance-constrained, scenario-based, robust optimisation |
+| **البرمجة العشوائية**: النموذج ذو المرحلتين مع التعويض، والمتعدد المراحل، والمبنية على السيناريوهات (القيود الاحتمالية والتحسين الحصين: انظر 5.14) | Two-stage & multi-stage recourse, scenario-based (chance-constrained & robust: see 5.14) |
 | تطبيقات: التخطيط الزراعي في ظل عدم تأكد الأمطار والأسعار والمياه | Planning under rainfall, price & water uncertainty |
 
 ### 5.12 نماذج تقييم الكفاءة والأداء — Efficiency & Performance
@@ -439,6 +439,48 @@
 | تطبيقات الوكلاء: انتشار تبني التكنولوجيا بين المزارعين، وأسواق السلع، واستخدام الأراضي، وانتشار الأوبئة، ونموذج شيلينج | Technology diffusion, commodity markets, land use, epidemics, Schelling |
 | تكرارات مونت كارلو لنماذج الوكلاء، وتحليل الحساسية للمعلمات | Monte Carlo replications, parameter sweeps |
 | تحليل الشبكات الاجتماعية والاقتصادية (المركزية، والمجتمعات)، والأوتوماتا الخلوية | Network analysis (centrality, communities), cellular automata |
+
+### 5.14 التحسين المرن وغير الدقيق — Fuzzy & Robust Optimization
+| النموذج / الطريقة | Model / method |
+|---|---|
+| **التحسين الحصين** (Robust Optimization): مجموعات عدم التأكد الصندوقية والإهليلجية والموازنة (Bertsimas-Sim) | Robust optimisation: box, ellipsoidal, budgeted uncertainty sets |
+| **البرمجة الرياضية الضبابية**: البرمجة الخطية الضبابية (Zimmermann)، والمعاملات الضبابية، والقيود المرنة | Fuzzy LP (Zimmermann), fuzzy coefficients, soft constraints |
+| **التحسين الحصين الموزع** (DRO): مجموعات الغموض بالعزوم وبمسافة واسرشتاين | Distributionally robust: moment-based & Wasserstein ambiguity sets |
+| **البرمجة بالقيود الاحتمالية** (Chance-Constrained): الفردية والمشتركة، والتقريب بالعينة (SAA) | Individual & joint chance constraints, sample average approximation |
+| مقارنة الحلول: الحتمي، والعشوائي، والحصين (ثمن الحصانة وقيمة الحل العشوائي VSS) | Deterministic vs stochastic vs robust: price of robustness, VSS |
+
+### 5.15 الخوارزميات ما وراء الاستدلالية والتحسين التطوري — Metaheuristics & Evolutionary Optimization
+| النموذج / الطريقة | Model / method |
+|---|---|
+| الخوارزميات الجينية (GA) وNSGA-II لتعدد الأهداف | Genetic algorithms, NSGA-II |
+| تحسين سرب الجسيمات (PSO) | Particle swarm optimisation |
+| تحسين مستعمرة النمل (ACO) | Ant colony optimisation |
+| التلدين المحاكى (SA) | Simulated annealing |
+| البحث المحظور (Tabu Search) | Tabu search |
+| التطور التفاضلي (DE) | Differential evolution |
+| أخرى: البحث المحلي التكراري، والجوار المتغير (VNS)، ونحل العسل الاصطناعي (ABC)، وخوارزمية الذئب الرمادي (GWO) | ILS, VNS, artificial bee colony, grey wolf optimiser |
+| لوحة المقارنة: منحنيات التقارب، وأفضل حل وأسوئه ومتوسطه عبر التكرارات، وضبط المعلمات | Convergence curves, multi-run statistics, parameter tuning |
+
+### 5.16 تحسين الشبكات وسلاسل الإمداد المتقدمة — Advanced Network & Supply Chain
+| النموذج / الطريقة | Model / method |
+|---|---|
+| **توجيه المركبات** (VRP) بقيود السعة (CVRP) والنوافذ الزمنية (VRPTW)، والبائع المتجول (TSP) | VRP, CVRP, VRPTW, TSP |
+| **تحديد مواقع التسهيلات**: P-Median، وP-Center، وتغطية المجموعات، والتغطية القصوى، والمواقع غير المقيدة السعة | Facility location: p-median, p-center, set covering, maximal covering, UFLP |
+| التدفق الأقصى وأقصر مسار والتدفق الأقل تكلفة على الشبكات الكبيرة (انظر 5.7) | Max flow, shortest path, min-cost flow (see 5.7) |
+| **التحسين ثنائي المستوى** (القائد-التابع): سياسات الدعم والتسعير والضرائب | Bi-level (Stackelberg) optimisation: subsidy, pricing, tax policy |
+| **التخطيط والجدولة المتكاملة وأحجام الدفعات**: Wagner-Whitin، والمسائل ذات السعة (CLSP)، وجدولة الورش (Job-shop / Flow-shop) | Lot-sizing (Wagner-Whitin, CLSP), job-shop / flow-shop scheduling |
+| تصميم سلاسل الإمداد، وتوجيه المخزون، وسلاسل الإمداد الغذائية وسلاسل التبريد | Supply-chain network design, inventory routing, food & cold chains |
+
+### 5.17 بحوث العمليات المعتمدة على الذكاء الاصطناعي — AI-Driven Operations Research 🧠
+| النموذج / الطريقة | Model / method |
+|---|---|
+| التحسين التوافقي بالتعلم المعزز (RL4CO) | Reinforcement learning for combinatorial optimisation |
+| **التنبؤ ثم التحسين** و«التنبؤ ثم التحسين الذكي» (SPO / SPO+) | Predict-then-optimise, Smart Predict-then-Optimise |
+| التحسين المعزز بالتعلم الآلي: تعلّم التفرع، والبدايات الدافئة، وتعلّم القيود | ML-augmented optimisation: learning to branch, warm starts, constraint learning |
+| التعلم المعزز متعدد الوكلاء لبحوث العمليات (MARL) | Multi-agent reinforcement learning for OR |
+| الشبكات العصبية البيانية للتحسين التوافقي (GNN) | Graph neural networks for combinatorial optimisation |
+| **التحسين البايزي** (العمليات الغاوسية ودوال الاكتساب) | Bayesian optimisation |
+| التحسين القائم على المحاكاة بالنماذج البديلة (Surrogate) | Simulation-based optimisation with surrogate models |
 
 ## 6. محور تقييم المشروعات والتحليل المالي — Project Appraisal
 - صافي القيمة الحالية، ومعدل العائد الداخلي، ونسبة المنافع إلى التكاليف، وفترة الاسترداد · NPV, IRR, B/C, payback
@@ -475,13 +517,14 @@
 | v1.10 | 2.1–2.4 الإنتاج والتكاليف والطلب والعرض |
 | v1.11 | 1.14 الكمي + 1.20 تقييم السياسات + 1.16 المكاني + 1.26 المناخ والطاقة |
 | v1.12 | 8. استوديو التقارير + مساعد الذكاء الاصطناعي + لوحة صانع القرار |
-| v2.0 – v2.0.8 | 5. بحوث العمليات (ثلاثة إصدارات) + 6. تقييم المشروعات |
+| v2.0 – v2.0.8 | 5.1–5.13 بحوث العمليات (ثلاثة إصدارات) + 6. تقييم المشروعات |
+| v2.0.9 | 5.14 التحسين الحصين والضبابي + 5.15 الخوارزميات ما وراء الاستدلالية + 5.16 الشبكات وسلاسل الإمداد المتقدمة |
 | v2.1 | 2.5–2.12 الأسواق والتجارة والكلي والتنمية والكفاءة والمالية + 7. الأرقام القياسية |
 | v2.2 | 1.10–1.13 عالية التردد، والعوامل والأبعاد العالية، والمعاملات المتغيرة، واللامعلمي + 4. متعدد المتغيرات وSEM |
 | v2.3 | 1.6 الخيارات الهيكلية + 1.17 الشبكات والعدوى + 1.18 البايزي + 1.21 التعلم الآلي السببي |
-| v2.4 🧠 | 1.19 DSGE وHANK + 1.22 العميق + 1.23 التنبؤ بالذكاء الاصطناعي + 1.24 النصوص والصور + 1.25 تحسين السياسات |
+| v2.4 🧠 | 5.17 بحوث العمليات بالذكاء الاصطناعي + 1.19 DSGE وHANK + 1.22 العميق + 1.23 التنبؤ بالذكاء الاصطناعي + 1.24 النصوص والصور + 1.25 تحسين السياسات |
 | v2.5+ | الأكاديمية والمجتمع، والحسابات والاشتراكات |
 
-> 🧠 **ملاحظة البنية التحتية:** نماذج التعلم العميق وDSGE وHANK وتحليل صور الأقمار الصناعية تحتاج مكتبات ثقيلة (مثل PyTorch) وقدرة حوسبة،
+> 🧠 **ملاحظة البنية التحتية:** نماذج التعلم العميق والتعلم المعزز وDSGE وHANK وتحليل صور الأقمار الصناعية تحتاج مكتبات ثقيلة (مثل PyTorch) وقدرة حوسبة،
 > وهي تتجاوز إمكانات الاستضافة المجانية لـ Streamlit. قبل الإصدار v2.4 سننقل الحسابات الثقيلة إلى خادم مستقل (API)، تبقى
 > الواجهة على Streamlit وتُرسل إليه المهام الثقيلة. بقية النماذج كلها تعمل على الاستضافة الحالية.
