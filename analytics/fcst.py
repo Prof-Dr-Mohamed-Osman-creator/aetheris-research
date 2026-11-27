@@ -840,7 +840,7 @@ def _ml_estimator(kind: str, seed: int = 1):
         return xgb.XGBRegressor(n_estimators=400, learning_rate=0.03, max_depth=4, subsample=0.9, colsample_bytree=0.9, random_state=seed)
     if kind == "cat":
         import catboost as cb
-        return cb.CatBoostRegressor(iterations=500, learning_rate=0.05, depth=4, random_seed=seed, verbose=0)
+        return cb.CatBoostRegressor(iterations=500, learning_rate=0.05, depth=4, random_seed=seed, verbose=0, allow_writing_files=False)
     if kind == "svr":
         return make_pipeline(StandardScaler(), SVR(C=10.0, epsilon=0.05, gamma="scale"))
     return make_pipeline(StandardScaler(), RidgeCV(alphas=np.logspace(-3, 3, 25)))
