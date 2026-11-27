@@ -273,6 +273,50 @@ def v17_blocks():
     return ["\n".join(L)]
 
 
+def v18_blocks():
+    """v1.8 — static panel models (xtreg) and system GMM (xtabond2 [ssc])."""
+    import numpy as np
+    from analytics import panel as pn
+    from analytics import panel_gmm as pg
+    from data.samples import firm_panel_demo
+    F = firm_panel_demo()
+    F.to_csv(OUT / "v18_firms.csv", index=False)
+    P = pn.prepare(F, "firm_id", "year", "ln_sales", ["ln_capital", "ln_labour"])
+    L = [f"\n* {'=' * 70}\n* v1.8 — panel data (xtreg, xtabond2)\n* {'=' * 70}",
+         'import delimited "v18_firms.csv", clear varnames(1) case(preserve)', "encode firm_id, gen(fid)", "xtset fid year"]
+    for title, cmd, m, cov, tol in (("FE", "xtreg ln_sales ln_capital ln_labour, fe", "fe", "classic", 1e-6),
+                                    ("FE cluster", "xtreg ln_sales ln_capital ln_labour, fe vce(cluster fid)", "fe", "cluster", 1e-5),
+                                    ("RE", "xtreg ln_sales ln_capital ln_labour, re", "re", "classic", 1e-5),
+                                    ("Between", "xtreg ln_sales ln_capital ln_labour, be", "be", "classic", 1e-6)):
+        r = pn.fit(P, m, cov)
+        L.append("quietly " + cmd)
+        for v, b, se in zip(r.names, r.b, r.se):
+            sv = "_cons" if v == "const" else v
+            if m == "fe" and v == "const":
+                continue
+            L.append(f'chk "{title} b[{v}]" _b[{sv}] {float(b)!r} {tol}')
+            L.append(f'chk "{title} se[{v}]" _se[{sv}] {float(se)!r} {tol * 10}')
+    r = pn.fgls(P, "hetero")
+    L.append("quietly xtgls ln_sales ln_capital ln_labour, panels(heteroskedastic)")
+    for v, b, se in zip(r.names, r.b, r.se):
+        sv = "_cons" if v == "const" else v
+        L.append(f'chk "FGLS hetero b[{v}]" _b[{sv}] {float(b)!r} 1e-6')
+        L.append(f'chk "FGLS hetero se[{v}]" _se[{sv}] {float(se)!r} 1e-5')
+    spec = pg.GmmSpec("ln_sales", [1], {"ln_capital": [0], "ln_labour": [0]}, {"ln_sales": (2, 99), "ln_labour": (2, 99), "ln_capital": (1, 99)})
+    for tr, nm, opt in (("d", "Difference GMM", " noleveleq"), ("ld", "System GMM", "")):
+        g = pg.fit(F, "firm_id", "year", spec, "twosteps", tr, "twoways", True)
+        se = np.sqrt(np.diag(g.V))
+        L += ["capture which xtabond2", "if _rc ssc install xtabond2",
+              f"quietly xtabond2 ln_sales L.ln_sales ln_capital ln_labour i.year, gmm(ln_sales, lag(2 .) collapse) "
+              f"gmm(ln_labour, lag(2 .) collapse) gmm(ln_capital, lag(1 .) collapse) iv(i.year){opt} twostep robust",
+              "* xtabond2 and R pgmm treat the time dummies slightly differently in the level equation: compare to ~3 decimals."]
+        for v, b, s_ in zip(["L.ln_sales", "ln_capital", "ln_labour"], g.coef[:3], se[:3]):
+            L.append(f'chk "{nm} b[{v}]" _b[{v}] {float(b)!r} 1e-3')
+            L.append(f'chk "{nm} se[{v}]" _se[{v}] {float(s_)!r} 1e-2')
+        L.append(f'chk "{nm} AR(2)" e(ar2) {float(g.tests["AR(2)"][0])!r} 1e-2')
+    return ["\n".join(L)]
+
+
 def main():
     farm = farm_survey_demo()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -326,6 +370,7 @@ def main():
     parts += v15_blocks()
     parts += v16_blocks()
     parts += v17_blocks()
+    parts += v18_blocks()
     parts += ['\ndisplay _n "Total failures: $fails"',
               'if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."']
     (OUT / "stata_check.do").write_text("\n".join(parts) + "\n", encoding="utf-8")

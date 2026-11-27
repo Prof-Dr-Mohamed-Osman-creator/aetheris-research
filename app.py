@@ -110,11 +110,11 @@ if page == "home":
          tr("Regression with 5 functional forms, OLS/WLS/FGLS/GLS/robust/RLS/NLS, robust SEs, 25+ diagnostics, "
             "IV / 2SLS / GMM / 3SLS / SUR, logit-probit-multinomial-ordered, Tobit / Heckman / hurdles, count and survival "
             "models, unit roots and Box-Jenkins ARIMA / SARIMA / ARFIMA forecasting, elasticities, journal tables, policy what-if "
-            "VAR / VECM, ARDL / NARDL, GARCH / DCC and Python/R/Stata code. Panel data next.",
+            "VAR / VECM, ARDL / NARDL, GARCH / DCC, panel data (FE / RE, panel unit roots and cointegration, GMM, PMG, CCE) and Python/R/Stata code.",
             "الانحدار بخمس صور دالية، وOLS وWLS وFGLS وGLS والمتين والمقيد وغير الخطي، والأخطاء المتينة، وأكثر من 25 "
             "اختباراً تشخيصياً، والمتغيرات الأداتية والأنظمة، ونماذج الاستجابة النوعية والمراقَبة والاختيار، والعدّ والبقاء، "
             "وجذور الوحدة ومنهجية بوكس-جنكنز للتنبؤ (ARIMA وSARIMA وARFIMA)، والمرونات، وجداول المجلات، ومحاكاة «ماذا لو»، "
-            "ونماذج VAR وVECM وARDL وNARDL وGARCH وDCC، وكود Python وR وStata. بيانات البانل قادمة.")),
+            "ونماذج VAR وVECM وARDL وNARDL وGARCH وDCC، والبيانات الطولية (الآثار الثابتة والعشوائية وجذور الوحدة والتكامل وGMM وPMG وCCE)، وكود Python وR وStata.")),
         ("⚙️", tr("Operations Research", "بحوث العمليات"),
          tr("Linear programming, transportation, efficiency (DEA) — in development.",
             "البرمجة الخطية، ومسائل النقل، وتحليل الكفاءة (DEA) — قيد التطوير.")),

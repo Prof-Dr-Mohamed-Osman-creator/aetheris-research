@@ -99,7 +99,8 @@ def render_econometrics():
               tr("📉 Time series", "📉 السلاسل الزمنية"),
               tr("🔗 VAR & cointegration", "🔗 VAR والتكامل المشترك"),
               tr("📐 ARDL / NARDL", "📐 ARDL / NARDL"),
-              tr("🌪️ Volatility (GARCH)", "🌪️ التقلب (GARCH)")]
+              tr("🌪️ Volatility (GARCH)", "🌪️ التقلب (GARCH)"),
+              tr("🧱 Panel data", "🧱 البيانات الطولية (البانل)")]
     tabs = st.tabs(labels)
     with tabs[0]:
         _builder_tab(df)
@@ -134,6 +135,9 @@ def render_econometrics():
         mts_ui.render_ardl(df)
     with tabs[14]:
         mts_ui.render_garch(df)
+    with tabs[15]:
+        from analytics import panel_ui
+        panel_ui.render_panel(df)
 
 
 def _demo_buttons():
@@ -166,6 +170,17 @@ def _demo_buttons():
         if st.button(tr("💹 Daily asset prices (GARCH)", "💹 أسعار أصول يومية (GARCH)"), key="eco_demo_garch"):
             from data.samples import financial_returns_demo
             set_memory(financial_returns_demo(), source="demo (synthetic)", name="Demo – daily asset prices (synthetic)")
+            st.rerun()
+    c11, c12 = st.columns(2)
+    with c11:
+        if st.button(tr("🌍 Macro panel (20 countries × 40 years)", "🌍 بانل كلي (20 دولة × 40 سنة)"), key="eco_demo_mpanel"):
+            from data.samples import macro_panel_demo
+            set_memory(macro_panel_demo(), source="demo (synthetic)", name="Demo – macro panel (synthetic)")
+            st.rerun()
+    with c12:
+        if st.button(tr("🏭 Firm panel (400 firms × 8 years, GMM)", "🏭 بانل المنشآت (400 منشأة × 8 سنوات، GMM)"), key="eco_demo_fpanel"):
+            from data.samples import firm_panel_demo
+            set_memory(firm_panel_demo(), source="demo (synthetic)", name="Demo – firm panel (synthetic)")
             st.rerun()
     c6, c7 = st.columns(2)
     with c6:

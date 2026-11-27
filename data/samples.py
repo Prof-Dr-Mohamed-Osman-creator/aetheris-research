@@ -281,3 +281,62 @@ def financial_returns_demo(seed: int = 4) -> pd.DataFrame:
     prices = 100 * np.exp(np.cumsum(r / 100, axis=0))
     return pd.DataFrame({"date": date, "equity_index": np.round(prices[:, 0] * 120, 2),
                          "bank_stock_egp": np.round(prices[:, 1] * 0.6, 3), "gold_usd_oz": np.round(prices[:, 2] * 13.2, 2)})
+
+
+def macro_panel_demo(seed: int = 15) -> pd.DataFrame:
+    """Synthetic macro panel (20 countries, 1985–2024): I(1) income and energy use cointegrated with CO₂ emissions
+    through a common long-run relation (0.30 income, 0.80 energy) and heterogeneous adjustment speeds — for panel
+    unit roots, cointegration, PMG / MG and CCE. A common global factor induces cross-sectional dependence."""
+    rng = np.random.default_rng(seed)
+    N, T = 20, 40
+    years = np.arange(1985, 1985 + T)
+    f = np.cumsum(rng.normal(0, 0.02, T))                       # global factor
+    rows = []
+    for i in range(N):
+        lam = rng.uniform(0.5, 1.5)
+        a_i = rng.normal(8.5, 0.8)
+        y = a_i + np.cumsum(rng.normal(0.018, 0.025, T)) + lam * f
+        e = rng.normal(6.8, 0.3) + 0.6 * (y - a_i) + np.cumsum(rng.normal(0, 0.02, T)) + 0.5 * lam * f
+        phi = rng.uniform(-0.55, -0.15)
+        c = np.zeros(T)
+        mu_i = rng.normal(-1.0, 0.3)
+        c[0] = mu_i + 0.30 * y[0] + 0.80 * e[0]
+        for t in range(1, T):
+            ec = c[t - 1] - mu_i - 0.30 * y[t - 1] - 0.80 * e[t - 1]
+            c[t] = c[t - 1] + phi * ec + rng.uniform(0.1, 0.5) * (y[t] - y[t - 1]) + rng.uniform(0.4, 0.9) * (e[t] - e[t - 1]) \
+                + 0.3 * lam * (f[t] - f[t - 1]) + rng.normal(0, 0.02)
+        trade = np.zeros(T)
+        trade[0] = rng.normal(60, 15)
+        for t in range(1, T):
+            trade[t] = trade[0] * 0.3 + 0.7 * trade[t - 1] + rng.normal(0, 3)
+        for t in range(T):
+            rows.append({"country": f"Country {i + 1:02d}", "year": int(years[t]), "gdp_pc_usd": round(float(np.exp(y[t] - 0.5)), 1),
+                         "energy_kgoe_pc": round(float(np.exp(e[t])), 1), "co2_t_pc": round(float(np.exp(c[t] - 6.0)), 3),
+                         "trade_pct_gdp": round(float(trade[t]), 2)})
+    return pd.DataFrame(rows)
+
+
+def firm_panel_demo(seed: int = 3) -> pd.DataFrame:
+    """Synthetic firm panel (400 firms, 2017–2024) for dynamic panel GMM: log sales follow
+    y_it = 0.5 y_i,t−1 + 0.25 k_it + 0.35 l_it + α_i + λ_t + ε_it with capital predetermined, labour endogenous and the
+    firm effect correlated with the regressors (so pooled OLS is biased up and within biased down)."""
+    rng = np.random.default_rng(seed)
+    N, T, burn = 400, 8, 20
+    sectors = ["Food", "Textiles", "Chemicals", "Engineering"]
+    lam = rng.normal(0, 0.05, T + burn)
+    rows = []
+    for i in range(N):
+        a = rng.normal(0, 0.5)
+        sec = sectors[i % 4]
+        y = k = l = 0.0
+        e_prev = 0.0
+        for t in range(T + burn):
+            e = rng.normal(0, 0.2)
+            k = 0.7 * k + 0.2 * a + 0.3 * e_prev + rng.normal(0, 0.2)
+            l = 0.6 * l + 0.2 * a + 0.4 * e + rng.normal(0, 0.2)
+            y = 0.5 * y + 0.25 * k + 0.35 * l + a + lam[t] + e
+            e_prev = e
+            if t >= burn:
+                rows.append({"firm_id": f"F{i + 1:03d}", "year": 2017 + t - burn, "sector": sec, "ln_sales": round(y + 3, 4),
+                             "ln_capital": round(k + 2, 4), "ln_labour": round(l + 1.5, 4), "exporter": int(a > 0.3)})
+    return pd.DataFrame(rows)
