@@ -687,5 +687,30 @@ chk "System GMM b[ln_labour]" _b[ln_labour] 0.4727425318443516 1e-3
 chk "System GMM se[ln_labour]" _se[ln_labour] 0.059493932585278124 1e-2
 chk "System GMM AR(2)" e(ar2) -0.13867333416117217 1e-2
 
+* ======================================================================
+* v1.9 — forecasting (arima with seasonal differencing, bridge equation)
+* ======================================================================
+import delimited "v19_monthly.csv", clear varnames(1) case(preserve)
+gen t = _n
+tsset t
+quietly arima S12.electricity_gwh S12.temperature_c, ar(1) ma(1) mma(1, 12) noconstant
+* Stata maximises the exact likelihood of the differenced data, as R Arima and Aetheris; optimisers may differ slightly.
+chk "ARIMAX temp" [S12.electricity_gwh]_b[S12.temperature_c] 85.05186150440335 1e-3
+chk "ARIMAX ar1" [ARMA]_b[L.ar] 0.9851099494762924 1e-3
+chk "ARIMAX ma1" [ARMA]_b[L.ma] -0.23534036830109523 1e-2
+chk "ARIMAX sma1" [ARMA12]_b[L.ma] -0.6895768735525117 1e-3
+import delimited "v19_bridge.csv", clear varnames(1) case(preserve)
+quietly regress y industrial_production_mom pmi exports_mom retail_sales_mom
+chk "Bridge b[const]" _b[_cons] -6.665392590461742 1e-6
+chk "Bridge se[const]" _se[_cons] 1.4642273510131572 1e-6
+chk "Bridge b[industrial_production_mom]" _b[industrial_production_mom] 0.12854944215230696 1e-6
+chk "Bridge se[industrial_production_mom]" _se[industrial_production_mom] 0.058899704236930084 1e-6
+chk "Bridge b[pmi]" _b[pmi] 0.14758918656448466 1e-6
+chk "Bridge se[pmi]" _se[pmi] 0.029131704731749995 1e-6
+chk "Bridge b[exports_mom]" _b[exports_mom] 0.05205791530055724 1e-6
+chk "Bridge se[exports_mom]" _se[exports_mom] 0.02230338718101495 1e-6
+chk "Bridge b[retail_sales_mom]" _b[retail_sales_mom] 0.03408593524310712 1e-6
+chk "Bridge se[retail_sales_mom]" _se[retail_sales_mom] 0.06001492038118582 1e-6
+
 display _n "Total failures: $fails"
 if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."
