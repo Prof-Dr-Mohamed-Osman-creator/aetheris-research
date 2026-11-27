@@ -95,7 +95,8 @@ def render_econometrics():
               tr("🎯 Qualitative response", "🎯 الاستجابة النوعية"),
               tr("✂️ Censored & selection", "✂️ المراقَبة والاختيار"),
               tr("🔢 Count data", "🔢 بيانات العدّ"),
-              tr("⏳ Survival & duration", "⏳ البقاء والمدة")]
+              tr("⏳ Survival & duration", "⏳ البقاء والمدة"),
+              tr("📉 Time series", "📉 السلاسل الزمنية")]
     tabs = st.tabs(labels)
     with tabs[0]:
         _builder_tab(df)
@@ -120,6 +121,9 @@ def render_econometrics():
         emu.render_count(df)
     with tabs[10]:
         emu.render_survival(df)
+    with tabs[11]:
+        from analytics import ts_ui
+        ts_ui.render_ts(df)
 
 
 def _demo_buttons():
@@ -136,6 +140,17 @@ def _demo_buttons():
     with c5:
         if st.button(tr("⚖️ Crop market (demand & supply)", "⚖️ سوق محصول (الطلب والعرض)"), key="eco_demo_sem"):
             set_memory(market_sem_demo(), source="demo (synthetic)", name="Demo – crop market SEM (synthetic)")
+            st.rerun()
+    c6, c7 = st.columns(2)
+    with c6:
+        if st.button(tr("📈 Macro & prices (monthly, 2000–2025)", "📈 مؤشرات كلية وأسعار (شهرية، 2000–2025)"), key="eco_demo_ts"):
+            from data.samples import macro_ts_demo
+            set_memory(macro_ts_demo(), source="demo (synthetic)", name="Demo – monthly macro series (synthetic)")
+            st.rerun()
+    with c7:
+        if st.button(tr("🚜 Agricultural output (quarterly, seasonal)", "🚜 الناتج الزراعي (ربع سنوي، موسمي)"), key="eco_demo_q"):
+            from data.samples import quarterly_demo
+            set_memory(quarterly_demo(), source="demo (synthetic)", name="Demo – quarterly agricultural output (synthetic)")
             st.rerun()
     c1, c2 = st.columns(2)
     with c1:

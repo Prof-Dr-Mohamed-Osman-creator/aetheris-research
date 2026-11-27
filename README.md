@@ -17,7 +17,7 @@ A complete research workflow inside one integrated environment:
 
 ## Current Status
 
-- Version: `1.5.0-alpha`
+- Version: `1.6.0-alpha`
 - Live: https://aetheris-research.streamlit.app
 - Languages: English + Arabic (full RTL support)
 - ✅ Data Hub: file upload, World Bank WDI, FRED, Data Basket (multi-dataset memory + merge)
@@ -26,6 +26,7 @@ A complete research workflow inside one integrated environment:
 - ✅ Inferential Statistics wing: Test Advisor, 30+ parametric & non-parametric tests, post-hoc (Tukey, Games-Howell, Dunn) with compact letters, two-way & repeated-measures ANOVA, effect sizes, APA reporting, bootstrap CIs, power & sample size (G*Power-validated), survey sample size
 - ✅ **Econometrics Lab (v1.4 — catalogue §1.1 + §1.3):** guided & expert regression builder; 5 functional forms + Box-Cox; dummies/ANCOVA, polynomials, interactions (simple slopes, Johnson-Neyman), mediation (Sobel + bootstrap); stepwise, best subsets, hierarchical; OLS, WLS, FGLS, GLS-AR(1), robust M (Huber/Tukey), restricted LS, nonlinear LS; HC0–HC3, Newey-West, cluster & bootstrap SEs; 25+ diagnostics (BP/Koenker, White, Glejser, Park, Goldfeld-Quandt, exact Durbin-Watson, Breusch-Godfrey, Ljung-Box, Durbin h, RESET, Chow, CUSUM/CUSUMSQ, JB/SW/K²/AD, VIF & Belsley, Cook/DFFITS/DFBETAS); Wald/LR/LM; elasticities & marginal effects (delta method); journal-style multi-model tables; bilingual interpretation; policy brief + what-if; methodology paragraph with APA references; Excel / Word / LaTeX export and reproducible Python / R / Stata code. Validated against statsmodels (`tests/test_regression.py`) and against R — the exported R code is executed and must reproduce every estimate, SE and diagnostic (`tests/test_r_crosscheck.py`, skipped if R is absent). A self-checking Stata do-file is in `docs/validation/stata_check.do` (regenerate with `python tools/make_stata_check.py`).
 - ✅ **Econometrics Lab v1.5 (catalogue §1.2, §1.4, §1.5):** IV — 2SLS, LIML, Fuller, efficient GMM with first-stage diagnostics, Cragg-Donald / Stock-Yogo, Anderson-Rubin, Sargan / Basmann / Hansen J, Durbin / Wu-Hausman; systems — identification, ILS, 2SLS, 3SLS, SUR / iterated SUR; qualitative response — LPM, logit, probit, cloglog, multinomial logit (IIA), ordered logit / probit (Brant); censored & selection — Tobit, truncated, Heckman (two-step / ML), Cragg and double hurdle, fractional response; count — Poisson, NB2, ZIP / ZINB, hurdle, PPML; survival — Kaplan-Meier, log-rank, Cox (Schoenfeld test, Harrell C), parametric AFT, discrete-time hazard. Average marginal effects and policy scenarios for every model; validated against R (`tests/test_r_crosscheck_v15.py`), linearmodels and lifelines (`tests/test_v15.py`).
+- ✅ **Econometrics Lab v1.6 (catalogue §1.7):** univariate time series — series preparation (panel filters, logs, period detection), STL / classical decomposition, HP / Baxter-King / Christiano-Fitzgerald filters; unit roots — ADF, Phillips-Perron, KPSS, DF-GLS, Ng-Perron, Zivot-Andrews, seasonal HEGY and an automatic I(0)/I(1)/I(2) strategy; Box-Jenkins — ACF/PACF, automatic order search (AIC/AICc/BIC), exact-ML ARMA / ARIMA / SARIMA, residual diagnostics and inverse roots, forecasts with fan charts (log back-transform), hold-out evaluation with Diebold-Mariano; long memory — GPH, local Whittle, ARFIMA (Whittle). Validated against R urca / uroot / fracdiff / arima / forecast (`tests/test_r_crosscheck_ts.py`) and `tests/test_ts.py`; Stata checks added to `docs/validation/stata_check.do`.
 - Strategic plan: see [ROADMAP.md](ROADMAP.md) · Full model catalogue: [docs/MODEL_CATALOG.md](docs/MODEL_CATALOG.md)
 
 ## Project Structure
@@ -65,6 +66,9 @@ aetheris-research/
 │   ├── model_code.py          # v1.5 reproducible Python / R / Stata code
 │   ├── model_charts.py        # ROC, probability curves, rootograms, survival curves
 │   ├── econ_models_ui.py      # v1.5 Econometrics Lab tabs
+│   ├── ts.py                  # Univariate time series & unit roots §1.7 (pure, tested)
+│   ├── ts_report.py           # v1.6 interpretation, methodology, Python / R / Stata code
+│   ├── ts_ui.py               # v1.6 Time-series tab
 │   ├── charts.py              # Academic chart engine (17 chart types)
 │   └── chart_builder_ui.py    # Chart Builder
 ├── tests/                     # Unit tests (pytest)

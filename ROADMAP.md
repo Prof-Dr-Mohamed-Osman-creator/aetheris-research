@@ -53,6 +53,11 @@ with the full 10-element model standard. Next: v1.5 — simultaneous equations &
 ### ✅ Phase 4b — IV & systems, limited dependent variables, count & survival (v1.5)
 Catalogue §1.2, §1.4 and §1.5 with the full model standard and cross-validation against R. Next: v1.6 — univariate time series & unit roots.
 
+### ✅ Phase 4c — Univariate time series & unit roots (v1.6)
+Catalogue §1.7: decomposition and filters, the full unit-root battery (incl. Ng-Perron, Zivot-Andrews, HEGY), Box-Jenkins
+ARIMA / SARIMA with forecasting and out-of-sample evaluation, and long memory (ARFIMA). Next: v1.7 — VAR / VECM,
+cointegration, ARDL / NARDL and volatility models.
+
 ### Phase 4 — Econometrics Lab (flagship, continuing)
 - **Cross-section:** OLS with full diagnostics (Breusch-Pagan/White, VIF, RESET, Jarque-Bera), robust & clustered SEs, Logit/Probit with marginal effects, quantile regression, IV/2SLS.
 - **Time series:** ADF/PP/KPSS/Zivot-Andrews unit roots, **ARDL bounds testing** (Pesaran) with ECM, Johansen cointegration, VAR/VECM, Granger causality, impulse responses, ARIMA/SARIMA forecasting, structural breaks.

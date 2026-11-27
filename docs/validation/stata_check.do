@@ -499,5 +499,40 @@ quietly estat overid
 chk "Sargan chi2" r(sargan) 2.8004465625827546
 chk "Basmann chi2" r(basmann) 2.790623116729947
 
+* ======================================================================
+* v1.6 — unit roots and ARIMA (macro_ts_demo.csv)
+* ======================================================================
+import delimited "macro_ts_demo.csv", clear varnames(1) case(preserve)
+gen t = _n
+tsset t
+gen ln_cpi = ln(cpi_index)
+quietly dfuller ln_cpi, trend lags(4)
+chk "ADF tau (trend, 4 lags)" r(Zt) -4.0750786864911435 1e-6
+quietly dfuller D.ln_cpi, lags(2)
+chk "ADF tau on D.ln_cpi (2 lags)" r(Zt) -8.81195714277885 1e-6
+quietly pperron ln_cpi, lags(5)
+chk "Phillips-Perron Z(t) (c)" r(Zt) -0.05141264492215011 2e-3
+chk "Phillips-Perron Z(rho) (c)" r(Zrho) -0.015835297593986893 2e-3
+quietly pperron ln_cpi, trend lags(5)
+chk "Phillips-Perron Z(t) (ct)" r(Zt) -3.7621864534038805 2e-3
+chk "Phillips-Perron Z(rho) (ct)" r(Zrho) -27.537270735919925 2e-3
+quietly dfgls ln_cpi, maxlag(4)
+matrix DG = r(results)
+* r(results): rows k = maxlag … 1; column 5 = DF-GLS tau
+chk "DF-GLS tau (trend, 4 lags)" el(DG,1,5) -3.5821159930747624 1e-4
+quietly arima wheat_price_egp_t, arima(1,1,1) noconstant vce(oim)
+chk "ARIMA(1,1,1) b[ar.L1]" [ARMA]_b[L.ar] 0.3612814707322485 1e-3
+chk "ARIMA(1,1,1) b[ma.L1]" [ARMA]_b[L.ma] 0.3918971748979306 1e-3
+chk "ARIMA(1,1,1) se[ar.L1]" [ARMA]_se[L.ar] 0.08521876738880192 5e-3
+chk "ARIMA(1,1,1) sigma" [sigma]_b[_cons] 4.021317852954758 1e-3
+chk "ARIMA(1,1,1) log-likelihood" e(ll) -874.3652000491055 1e-5
+quietly arima ln_cpi, arima(0,1,1) sarima(0,1,1,12) noconstant vce(oim)
+chk "SARIMA b[ma.S.L12]" [ARMA12]_b[L.ma] -0.9132110767520821 1e-3
+chk "SARIMA log-likelihood" e(ll) 1021.6665023377545 1e-5
+quietly arima unemployment_rate, ar(1/2) vce(oim)
+chk "AR(2) b[ar.L1]" [ARMA]_b[L.ar] 1.1004373470260076 1e-4
+chk "AR(2) b[ar.L2]" [ARMA]_b[L2.ar] -0.27789596479197987 1e-4
+chk "AR(2) mean" [unemployment_rate]_b[_cons] 9.008293623369015 1e-4
+
 display _n "Total failures: $fails"
 if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."
