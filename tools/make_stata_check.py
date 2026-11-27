@@ -390,6 +390,18 @@ def v110_blocks():
         L.append(f'capture noisily chk "xtfrontier {m} log L" e(ll) {p["loglik"]!r} 1e-5')
         if m == "tvd":
             L.append(f'capture noisily chk "xtfrontier tvd eta" [eta]_b[_cons] {p["eta"]!r} 1e-3')
+    from data.samples import firm_tfp_demo
+    T = firm_tfp_demo()
+    T.to_csv(OUT / "v110_tfp.csv", index=False)
+    L += ['import delimited "v110_tfp.csv", clear varnames(1) case(preserve)', "encode firm_id, gen(fid)", "xtset fid year", "gen ln_inv = ln(investment)",
+          "capture which prodest", "if _rc ssc install prodest",
+          "* prodest (Rovigatti & Mollisi) uses its own polynomial and optimiser settings: compare to ~2 decimals."]
+    for m, px, opt in (("op", "investment", "method(op) proxy(ln_inv)"), ("lp", "ln_materials", "method(lp) proxy(ln_materials)"),
+                       ("acf", "ln_materials", "method(lp) proxy(ln_materials) acf")):
+        rr = pr.prodest(T, "firm_id", "year", "ln_value_added", ["ln_labour"], "ln_capital", px, m)
+        L.append(f"capture noisily prodest ln_value_added, free(ln_labour) state(ln_capital) {opt} va poly(3) reps(0)")
+        L.append(f'capture noisily chk "prodest {m} b[ln_labour]" _b[ln_labour] {float(rr["beta"][0])!r} 3e-2')
+        L.append(f'capture noisily chk "prodest {m} b[ln_capital]" _b[ln_capital] {float(rr["beta"][1])!r} 3e-2')
     H = household_budget_demo()
     H.to_csv(OUT / "v110_budget.csv", index=False)
     G5 = ["cereals", "meat_fish", "dairy_eggs", "fruit_veg", "other_food"]
