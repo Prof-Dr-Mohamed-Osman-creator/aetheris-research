@@ -627,5 +627,65 @@ chk "GARCH(1,1) alpha" [ARCH]_b[L.arch] 0.10942036145548271 1e-2
 chk "GARCH(1,1) beta" [ARCH]_b[L.garch] 0.8239171212955057 1e-2
 chk "GARCH(1,1) omega" [ARCH]_b[_cons] 0.04675695526559749 5e-2
 
+* ======================================================================
+* v1.8 — panel data (xtreg, xtabond2)
+* ======================================================================
+import delimited "v18_firms.csv", clear varnames(1) case(preserve)
+encode firm_id, gen(fid)
+xtset fid year
+quietly xtreg ln_sales ln_capital ln_labour, fe
+chk "FE b[ln_capital]" _b[ln_capital] 0.3716176144293417 1e-06
+chk "FE se[ln_capital]" _se[ln_capital] 0.01634445329114992 9.999999999999999e-06
+chk "FE b[ln_labour]" _b[ln_labour] 0.7579974229896489 1e-06
+chk "FE se[ln_labour]" _se[ln_labour] 0.016588558300434663 9.999999999999999e-06
+quietly xtreg ln_sales ln_capital ln_labour, fe vce(cluster fid)
+chk "FE cluster b[ln_capital]" _b[ln_capital] 0.3716176144293417 1e-05
+chk "FE cluster se[ln_capital]" _se[ln_capital] 0.019704263076712605 0.0001
+chk "FE cluster b[ln_labour]" _b[ln_labour] 0.7579974229896489 1e-05
+chk "FE cluster se[ln_labour]" _se[ln_labour] 0.021223383461688426 0.0001
+quietly xtreg ln_sales ln_capital ln_labour, re
+chk "RE b[const]" _b[_cons] 0.40531913260332275 1e-05
+chk "RE se[const]" _se[_cons] 0.0548856538806722 0.0001
+chk "RE b[ln_capital]" _b[ln_capital] 0.5899107413664271 1e-05
+chk "RE se[ln_capital]" _se[ln_capital] 0.02038034368956998 0.0001
+chk "RE b[ln_labour]" _b[ln_labour] 0.9230920969053494 1e-05
+chk "RE se[ln_labour]" _se[ln_labour] 0.021035362982718735 0.0001
+quietly xtreg ln_sales ln_capital ln_labour, be
+chk "Between b[const]" _b[_cons] -4.158842827666377 1e-06
+chk "Between se[const]" _se[_cons] 0.10503305763701677 9.999999999999999e-06
+chk "Between b[ln_capital]" _b[ln_capital] 2.031759895539424 1e-06
+chk "Between se[ln_capital]" _se[ln_capital] 0.0805305295733182 9.999999999999999e-06
+chk "Between b[ln_labour]" _b[ln_labour] 2.0936623771402822 1e-06
+chk "Between se[ln_labour]" _se[ln_labour] 0.10145171834366355 9.999999999999999e-06
+quietly xtgls ln_sales ln_capital ln_labour, panels(heteroskedastic)
+chk "FGLS hetero b[const]" _b[_cons] -3.008249632220481 1e-6
+chk "FGLS hetero se[const]" _se[_cons] 0.04329975584394793 1e-5
+chk "FGLS hetero b[ln_capital]" _b[ln_capital] 1.676432454132112 1e-6
+chk "FGLS hetero se[ln_capital]" _se[ln_capital] 0.02378674336308525 1e-5
+chk "FGLS hetero b[ln_labour]" _b[ln_labour] 1.7879772981749327 1e-6
+chk "FGLS hetero se[ln_labour]" _se[ln_labour] 0.027416056653499256 1e-5
+capture which xtabond2
+if _rc ssc install xtabond2
+quietly xtabond2 ln_sales L.ln_sales ln_capital ln_labour i.year, gmm(ln_sales, lag(2 .) collapse) gmm(ln_labour, lag(2 .) collapse) gmm(ln_capital, lag(1 .) collapse) iv(i.year) noleveleq twostep robust
+* xtabond2 and R pgmm treat the time dummies slightly differently in the level equation: compare to ~3 decimals.
+chk "Difference GMM b[L.ln_sales]" _b[L.ln_sales] 0.44767991533037943 1e-3
+chk "Difference GMM se[L.ln_sales]" _se[L.ln_sales] 0.05241568053510306 1e-2
+chk "Difference GMM b[ln_capital]" _b[ln_capital] 0.27583670212913836 1e-3
+chk "Difference GMM se[ln_capital]" _se[ln_capital] 0.034913085390876716 1e-2
+chk "Difference GMM b[ln_labour]" _b[ln_labour] 0.4116244230339099 1e-3
+chk "Difference GMM se[ln_labour]" _se[ln_labour] 0.0646199693732368 1e-2
+chk "Difference GMM AR(2)" e(ar2) 0.29716793559443727 1e-2
+capture which xtabond2
+if _rc ssc install xtabond2
+quietly xtabond2 ln_sales L.ln_sales ln_capital ln_labour i.year, gmm(ln_sales, lag(2 .) collapse) gmm(ln_labour, lag(2 .) collapse) gmm(ln_capital, lag(1 .) collapse) iv(i.year) twostep robust
+* xtabond2 and R pgmm treat the time dummies slightly differently in the level equation: compare to ~3 decimals.
+chk "System GMM b[L.ln_sales]" _b[L.ln_sales] 0.3767011451314195 1e-3
+chk "System GMM se[L.ln_sales]" _se[L.ln_sales] 0.04951799023035886 1e-2
+chk "System GMM b[ln_capital]" _b[ln_capital] 0.24282846504551797 1e-3
+chk "System GMM se[ln_capital]" _se[ln_capital] 0.03663226244387712 1e-2
+chk "System GMM b[ln_labour]" _b[ln_labour] 0.4727425318443516 1e-3
+chk "System GMM se[ln_labour]" _se[ln_labour] 0.059493932585278124 1e-2
+chk "System GMM AR(2)" e(ar2) -0.13867333416117217 1e-2
+
 display _n "Total failures: $fails"
 if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."
