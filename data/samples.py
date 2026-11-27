@@ -418,3 +418,177 @@ def realized_vol_demo(seed: int = 31) -> pd.DataFrame:
     price = 1000 * np.exp(np.cumsum(r / 100))
     return pd.DataFrame({"date": date, "index_level": np.round(price, 2), "return_pct": np.round(r, 4),
                          "realized_variance": np.round(rv * np.exp(rng.normal(0, 0.15, n)), 5)})
+
+
+def farm_efficiency_demo(seed: int = 41) -> pd.DataFrame:
+    """Synthetic panel of 150 farms × 6 seasons (2019–2024) for production-function, stochastic-frontier, DEA,
+    meta-frontier and Malmquist practice. Cobb-Douglas frontier with region-specific technologies; inefficiency
+    u ~ N⁺(δ0 + δ1·education + δ2·extension + δ3·credit, σu²) (Battese-Coelli 1995); prices for cost and profit work."""
+    rng = np.random.default_rng(seed)
+    regions = {"Delta": (1.10, 0.45, 0.25, 0.20), "Middle Egypt": (0.95, 0.40, 0.30, 0.20), "New Lands": (0.70, 0.50, 0.20, 0.25)}
+    rows = []
+    fid = 0
+    for reg, (a0, bl, bw, bf) in regions.items():
+        for _ in range(50):
+            fid += 1
+            land0 = np.exp(rng.normal(1.3, 0.5))
+            educ = int(rng.integers(0, 17))
+            for yr in range(2019, 2025):
+                land = land0 * np.exp(rng.normal(0, 0.05))
+                labour = np.exp(np.log(land) * 0.8 + rng.normal(3.6, 0.3))
+                fert = np.exp(np.log(land) + rng.normal(4.9, 0.35))
+                ext = int(rng.poisson(2))
+                credit = int(rng.random() < 0.45)
+                mu = 0.55 - 0.035 * educ - 0.06 * ext - 0.15 * credit
+                u = stats_truncnorm_draw(rng, mu, 0.25)
+                v = rng.normal(0, 0.15)
+                tech = 0.015 * (yr - 2019)
+                lny = a0 + tech + bl * np.log(land) + bw * np.log(labour) + bf * np.log(fert) - 2.2 + v - u
+                rows.append({"farm_id": f"F{fid:03d}", "region": reg, "year": yr, "output_tonnes": round(float(np.exp(lny)), 3),
+                             "land_feddan": round(float(land), 3), "labour_days": round(float(labour), 1), "fertilizer_kg": round(float(fert), 1),
+                             "education_years": educ, "extension_visits": ext, "credit_access": credit,
+                             "price_output": round(float(4000 * np.exp(rng.normal(0.03 * (yr - 2019), 0.05))), 1),
+                             "wage_day": round(float(150 * np.exp(rng.normal(0.08 * (yr - 2019), 0.06))), 1),
+                             "fert_price_kg": round(float(12 * np.exp(rng.normal(0.1 * (yr - 2019), 0.08))), 2),
+                             "land_rent": round(float(5000 * np.exp(rng.normal(0.05 * (yr - 2019), 0.05))), 1)})
+    df = pd.DataFrame(rows)
+    df["total_cost"] = (df.labour_days * df.wage_day + df.fertilizer_kg * df.fert_price_kg + df.land_feddan * df.land_rent).round(1)
+    return df
+
+
+def stats_truncnorm_draw(rng, mu, sigma):
+    """One draw from N(mu, sigma²) truncated below at zero."""
+    from scipy.stats import truncnorm
+    a = (0 - mu) / sigma
+    return float(truncnorm.rvs(a, np.inf, loc=mu, scale=sigma, random_state=rng))
+
+
+def fertilizer_trial_demo(seed: int = 9) -> pd.DataFrame:
+    """Synthetic nitrogen trial for yield-response practice: 4 sites × 7 N rates × 4 replicates; quadratic-plateau
+    response (plateau ≈ 7 t/ha reached near 190 kg N/ha), wheat and urea-N prices for the economic optimum."""
+    rng = np.random.default_rng(seed)
+    rows = []
+    for site, off in (("Site A", 0.0), ("Site B", -0.4), ("Site C", 0.3), ("Site D", -0.2)):
+        for n in (0, 40, 80, 120, 160, 200, 240):
+            for rep in range(1, 5):
+                x0 = 190.0
+                b1, b2 = 0.0425, -0.0425 / (2 * x0)
+                y = 3.0 + off + (b1 * min(n, x0) + b2 * min(n, x0) ** 2) + rng.normal(0, 0.3)
+                rows.append({"site": site, "replicate": rep, "n_kg_ha": n, "yield_t_ha": round(y, 3)})
+    df = pd.DataFrame(rows)
+    df["wheat_price_egp_t"] = 12000
+    df["n_price_egp_kg"] = 35
+    return df
+
+
+def firm_cost_demo(seed: int = 12) -> pd.DataFrame:
+    """Synthetic cross-section of 240 flour mills for cost-function practice: translog cost with known parameters
+    (three inputs: labour, capital, energy), cost shares, two outputs (flour, bran) for economies of scope."""
+    rng = np.random.default_rng(seed)
+    n = 240
+    lnq = rng.normal(9.0, 0.8, n)
+    lw = np.column_stack([rng.normal(5.2, 0.25, n), rng.normal(3.0, 0.3, n), rng.normal(1.5, 0.35, n)])
+    a = np.array([0.45, 0.35, 0.20])
+    G = np.array([[0.10, -0.06, -0.04], [-0.06, 0.09, -0.03], [-0.04, -0.03, 0.07]])
+    aq, aqq, gq = 0.75, 0.06, np.array([-0.02, 0.03, -0.01])
+    lw_c = lw - lw.mean(0)
+    lq_c = lnq - lnq.mean()
+    lnC = (10.5 + lw_c @ a + 0.5 * np.einsum("ij,jk,ik->i", lw_c, G, lw_c) + aq * lq_c + 0.5 * aqq * lq_c ** 2 + lq_c * (lw_c @ gq)
+           + lw.mean(0) @ a + rng.normal(0, 0.06, n))
+    S = a + lw_c @ G + np.outer(lq_c, gq) + rng.normal(0, 0.015, (n, 3)) @ np.array([[1, -0.5, -0.5], [-0.5, 1, -0.5], [-0.5, -0.5, 1]]) * 0.8
+    S = S / S.sum(1, keepdims=True)
+    q = np.exp(lnq)
+    share_bran = np.clip(rng.normal(0.22, 0.06, n), 0.02, 0.5)
+    single = rng.random(n) < 0.25
+    q2 = np.where(single, 0.0, q * share_bran)
+    q1 = q - q2 * 0.5
+    return pd.DataFrame({"mill_id": [f"M{i + 1:03d}" for i in range(n)], "output_t": np.round(q, 1), "flour_t": np.round(q1, 1),
+                         "bran_t": np.round(q2, 1), "wage": np.round(np.exp(lw[:, 0]), 2), "capital_price": np.round(np.exp(lw[:, 1]), 3),
+                         "energy_price": np.round(np.exp(lw[:, 2]), 3), "total_cost_k": np.round(np.exp(lnC) / 1000, 3),
+                         "share_labour": np.round(S[:, 0], 4), "share_capital": np.round(S[:, 1], 4), "share_energy": np.round(S[:, 2], 4)})
+
+
+def firm_tfp_demo(seed: int = 27) -> pd.DataFrame:
+    """Synthetic panel of 300 firms × 10 years for productivity estimation (Olley-Pakes, Levinsohn-Petrin,
+    Ackerberg-Caves-Frazer). Value added y = 1 + 0.6 l + 0.3 k + ω + ε with ω AR(1) (ρ = 0.7); labour responds to ω
+    (so OLS is biased), materials and investment are monotone in ω. True β_l = 0.6, β_k = 0.3."""
+    rng = np.random.default_rng(seed)
+    rows = []
+    for i in range(300):
+        k = rng.normal(4.0, 0.8)
+        w = rng.normal(0, 0.3)
+        for t in range(14):
+            w = 0.7 * w + rng.normal(0, 0.25)
+            lab = 1.0 + 0.6 * w + 0.35 * k + rng.normal(0, 0.25)
+            mat = 0.5 + 1.2 * w + 0.4 * k
+            inv = np.exp(0.2 + 0.9 * w + 0.15 * k)
+            y = 1.0 + 0.6 * lab + 0.3 * k + w + rng.normal(0, 0.1)
+            if t >= 4:
+                rows.append({"firm_id": f"N{i + 1:03d}", "year": 2011 + t, "ln_value_added": round(y, 5), "ln_labour": round(lab, 5),
+                             "ln_capital": round(k, 5), "ln_materials": round(mat, 5), "investment": round(inv, 5)})
+            k = np.log((1 - rng.uniform(0.02, 0.25)) * np.exp(k) + inv)
+    return pd.DataFrame(rows)
+
+
+def household_budget_demo(seed: int = 33) -> pd.DataFrame:
+    """Synthetic household budget survey (2,400 households, 4 regions × 6 survey rounds with price variation) for
+    demand-system practice: food budget shares of five groups generated by a QUAIDS with homogeneity and symmetry,
+    total food expenditure, group prices, household size and annual income."""
+    rng = np.random.default_rng(seed)
+    G = 5
+    names = ["cereals", "meat_fish", "dairy_eggs", "fruit_veg", "other_food"]
+    alpha = np.array([0.34, 0.22, 0.15, 0.17, 0.12])
+    beta = np.array([-0.09, 0.06, 0.02, 0.0, 0.01])
+    lam = np.array([0.012, -0.008, -0.002, 0.0, -0.002])
+    gam = np.array([[0.08, -0.03, -0.02, -0.02, -0.01], [-0.03, 0.07, -0.015, -0.015, -0.01], [-0.02, -0.015, 0.05, -0.01, -0.005],
+                    [-0.02, -0.015, -0.01, 0.06, -0.015], [-0.01, -0.01, -0.005, -0.015, 0.04]])
+    a0 = 7.8
+    base = np.array([1.6, 4.4, 3.3, 2.5, 3.0])
+    rows = []
+    cells = [(r, s) for r in range(4) for s in range(6)]
+    lp_cell = {c: rng.normal(0, 0.18, G) + 0.04 * (c[1] - 2.5) for c in cells}
+    for h in range(2400):
+        c = cells[h % len(cells)]
+        lp = lp_cell[c] + rng.normal(0, 0.03, G)
+        hs = int(rng.integers(1, 9))
+        lnx = rng.normal(8.2, 0.45) + 0.25 * np.log(hs)
+        lna = a0 + alpha @ lp + 0.5 * lp @ gam @ lp
+        lnb = beta @ lp
+        z = lnx - lna
+        w = alpha + gam @ lp + beta * z + lam / np.exp(lnb) * z ** 2 + rng.normal(0, 0.03, G) @ (np.eye(G) - 1 / G)
+        w = np.clip(w, 0.005, None)
+        w = w / w.sum()
+        row = {"hh_id": h + 1, "region": ["Cairo", "Delta", "Upper Egypt", "Canal"][c[0]], "round": c[1] + 1, "household_size": hs,
+               "food_expenditure": round(float(np.exp(lnx)), 1), "income": round(float(np.exp(lnx) / rng.uniform(0.35, 0.6)), 0)}
+        for g, nm in enumerate(names):
+            row[f"w_{nm}"] = round(float(w[g]), 5)
+            row[f"p_{nm}"] = round(float(np.exp(lp[g] + base[g])), 3)
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def supply_response_demo(seed: int = 17) -> pd.DataFrame:
+    """Synthetic annual wheat sector (1980–2025) for supply-response practice: Nerlove partial adjustment of area to
+    the expected real price (A = 3.0 + 0.35 P₋₁ − 0.15 Pc₋₁ + 0.6 A₋₁ + trend, in logs), yields with trend and rainfall, a
+    competing crop (berseem clover), fertilizer price and the consumer demand side for cobweb analysis."""
+    rng = np.random.default_rng(seed)
+    yrs = np.arange(1980, 2026)
+    n = len(yrs)
+    lp = np.zeros(n)
+    lpc = np.zeros(n)
+    la = np.zeros(n)
+    lp[0], lpc[0], la[0] = np.log(2.0), np.log(1.5), np.log(2600)
+    rain = rng.normal(0, 1, n)
+    for t in range(1, n):
+        lp[t] = 0.6 * lp[t - 1] + 0.4 * np.log(2.0) + 0.03 + rng.normal(0, 0.08)
+        lpc[t] = 0.7 * lpc[t - 1] + 0.3 * np.log(1.5) + 0.02 + rng.normal(0, 0.07)
+        la[t] = 3.0 + 0.35 * lp[t - 1] - 0.15 * lpc[t - 1] + 0.6 * la[t - 1] + 0.002 * (yrs[t] - 1980) + rng.normal(0, 0.03)
+    ly = np.log(2.1) + 0.012 * (yrs - 1980) + 0.03 * rain + rng.normal(0, 0.03, n)
+    area = np.exp(la)
+    yld = np.exp(ly)
+    prod = area * yld
+    return pd.DataFrame({"year": yrs, "wheat_area_kfed": np.round(area, 1), "wheat_yield_t_fed": np.round(yld, 3),
+                         "wheat_production_kt": np.round(prod, 1), "real_wheat_price": np.round(np.exp(lp), 4),
+                         "real_berseem_price": np.round(np.exp(lpc), 4), "real_fert_price": np.round(np.exp(rng.normal(0, 0.1, n) + 0.01 * (yrs - 1980)), 4),
+                         "rainfall_index": np.round(rain, 3), "per_capita_income": np.round(np.exp(8 + 0.02 * (yrs - 1980) + rng.normal(0, 0.03, n)), 1),
+                         "consumption_kt": np.round(prod * np.exp(0.45 + 0.02 * (yrs - 1980) + rng.normal(0, 0.04, n)), 1)})

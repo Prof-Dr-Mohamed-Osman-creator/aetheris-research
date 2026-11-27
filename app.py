@@ -33,10 +33,10 @@ def _on_lang_change():
     set_language(st.session_state["lang_select"])
 
 
-WINGS = ["home", "data_hub", "descriptive", "inferential", "econometrics", "forecasting",
+WINGS = ["home", "data_hub", "descriptive", "inferential", "econometrics", "forecasting", "applied",
          "operations", "reports", "academy", "community"]
 WING_ICONS = {"home": "🏠", "data_hub": "📥", "descriptive": "📋", "inferential": "🧪",
-              "econometrics": "📐", "forecasting": "🔮", "operations": "⚙️", "reports": "📄", "academy": "🎓", "community": "💬"}
+              "econometrics": "📐", "forecasting": "🔮", "applied": "🌾", "operations": "⚙️", "reports": "📄", "academy": "🎓", "community": "💬"}
 
 # ------------------------------------------
 # Sidebar - Language + Navigation
@@ -122,6 +122,15 @@ if page == "home":
             "مسابقة تلقائية بين النماذج مع اختبار تاريخي بالأصل المتدحرج واختبارات ديبولد-ماريانو؛ وETS وثيتا وARIMA/SARIMAX والفضاء "
             "الحالتي وBSTS ومنحنيات النمو؛ والتنبؤ الآني (الجسر وMIDAS والعوامل الديناميكية)، وVAR البايزي والإسقاطات المحلية؛ وHAR-RV "
             "وGARCH واختبار VaR؛ والتعلم الآلي ونماذج نمط Prophet؛ والتجميع ورسوم المروحة والسيناريوهات.")),
+        ("🌾", tr("Applied Economics Lab", "مختبر الاقتصاد التطبيقي"),
+         tr("Production functions (Cobb-Douglas, translog, CES, transcendental…) with elasticities, substitution, stages and isoquants; "
+            "yield response and economic optimum; cost curves, scale and scope; translog cost / profit systems; stochastic frontiers, "
+            "meta-frontier, DEA and Malmquist; Olley-Pakes / Levinsohn-Petrin / ACF productivity; Nerlove supply response and cobweb; "
+            "demand, Engel curves, LES / AIDS / QUAIDS / Rotterdam with welfare analysis; consumption functions.",
+            "دوال الإنتاج (كوب-دوجلاس، والترانسلوج، وCES، والترانسندنتالية…) مع المرونات والإحلال ومراحل الإنتاج والناتج المتساوي؛ واستجابة "
+            "المحصول والمعدل الاقتصادي الأمثل؛ ومنحنيات التكاليف والسعة والنطاق؛ وأنظمة التكاليف والربح ترانسلوج؛ والحدود العشوائية والحد "
+            "الفوقي وDEA ومالمكويست؛ والإنتاجية بطرق أولي-باكس وليفينسون-بترين وACF؛ واستجابة العرض لنيرلوف وبيت العنكبوت؛ والطلب "
+            "ومنحنيات إنجل وأنظمة LES وAIDS وQUAIDS وروتردام مع تحليل الرفاه؛ ودوال الاستهلاك.")),
         ("⚙️", tr("Operations Research", "بحوث العمليات"),
          tr("Linear programming, transportation, efficiency (DEA) — in development.",
             "البرمجة الخطية، ومسائل النقل، وتحليل الكفاءة (DEA) — قيد التطوير.")),
@@ -191,6 +200,11 @@ elif page == "forecasting":
     st.header(t("forecasting"))
     from analytics.forecast_ui import render_forecasting
     render_forecasting()
+
+elif page == "applied":
+    st.header(t("applied"))
+    from analytics.applied_ui import render_applied
+    render_applied()
 
 elif page == "operations":
     st.header(t("operations"))

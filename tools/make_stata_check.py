@@ -350,6 +350,60 @@ def v19_blocks():
     return ["\n".join(L)]
 
 
+def v110_blocks():
+    """v1.10 — production function, stochastic frontiers (frontier, xtfrontier) and QUAIDS (ssc quaids)."""
+    import numpy as np
+    from analytics import demand as dm
+    from analytics import production as pr
+    from data.samples import farm_efficiency_demo, household_budget_demo
+    F = farm_efficiency_demo()
+    F.to_csv(OUT / "v110_farms.csv", index=False)
+    X3 = ["land_feddan", "labour_days", "fertilizer_kg"]
+    L = [f"\n* {'=' * 70}\n* v1.10 — production, frontiers, QUAIDS\n* {'=' * 70}",
+         'import delimited "v110_farms.csv", clear varnames(1) case(preserve)', "gen lny = ln(output_tonnes)"] + [f"gen ln_{v} = ln({v})" for v in X3]
+    rhs = " ".join(f"ln_{v}" for v in X3)
+    cd = pr.production_function(F, "output_tonnes", X3, "cd")
+    L.append(f"quietly regress lny {rhs}")
+    for nm, b, se in zip(["_cons"] + [f"ln_{v}" for v in X3], cd.b, cd.se):
+        L.append(f'chk "CD b[{nm}]" _b[{nm}] {float(b)!r} 1e-6')
+        L.append(f'chk "CD se[{nm}]" _se[{nm}] {float(se)!r} 1e-6')
+    for dist, opt in (("hnormal", "hnormal"), ("exponential", "exponential"), ("tnormal", "tnormal")):
+        r = pr.sfa(F, "output_tonnes", X3, dist)
+        L.append(f"quietly frontier lny {rhs}, distribution({opt})")
+        for nm, b in zip(["_cons"] + [f"ln_{v}" for v in X3], r["beta"]):
+            L.append(f'capture noisily chk "SFA {dist} b[{nm}]" [lny]_b[{nm}] {float(b)!r} 1e-4')
+        L.append(f'capture noisily chk "SFA {dist} lnsig2v" [lnsig2v]_b[_cons] {float(r["theta"][4])!r} 1e-3')
+        L.append(f'capture noisily chk "SFA {dist} lnsig2u" [lnsig2u]_b[_cons] {float(r["theta"][5])!r} 1e-3')
+        L.append(f'capture noisily chk "SFA {dist} log L" e(ll) {r["loglik"]!r} 1e-5')
+    z = ["education_years", "extension_visits", "credit_access"]
+    r = pr.sfa(F, "output_tonnes", X3, "tnormal", z=z)
+    L.append(f"quietly frontier lny {rhs}, distribution(tnormal) cm({' '.join(z)})")
+    for nm, b in zip(z, r["theta"][7:]):
+        L.append(f'capture noisily chk "BC95 delta[{nm}]" [mu]_b[{nm}] {float(b)!r} 1e-3')
+    L.append(f'capture noisily chk "BC95 log L" e(ll) {r["loglik"]!r} 1e-5')
+    L += ["encode farm_id, gen(fid)", "xtset fid year"]
+    for m in ("ti", "tvd"):
+        p = pr.sfa_panel(F, "farm_id", "year", "output_tonnes", X3, m)
+        L.append(f"quietly xtfrontier lny {rhs}, {m}")
+        for nm, b in zip(["_cons"] + [f"ln_{v}" for v in X3], p["theta"]):
+            L.append(f'capture noisily chk "xtfrontier {m} b[{nm}]" [lny]_b[{nm}] {float(b)!r} 1e-4')
+        L.append(f'capture noisily chk "xtfrontier {m} log L" e(ll) {p["loglik"]!r} 1e-5')
+        if m == "tvd":
+            L.append(f'capture noisily chk "xtfrontier tvd eta" [eta]_b[_cons] {p["eta"]!r} 1e-3')
+    H = household_budget_demo()
+    H.to_csv(OUT / "v110_budget.csv", index=False)
+    G5 = ["cereals", "meat_fish", "dairy_eggs", "fruit_veg", "other_food"]
+    q = dm.aids(H, [f"w_{g}" for g in G5], [f"p_{g}" for g in G5], "food_expenditure", "quaids", alpha0=7.8, normalize=False)
+    L += ['import delimited "v110_budget.csv", clear varnames(1) case(preserve)', "capture which quaids", "if _rc ssc install quaids",
+          "quietly quaids " + " ".join(f"w_{g}" for g in G5) + ", anot(7.8) prices(" + " ".join(f"p_{g}" for g in G5) + ") expenditure(food_expenditure) nolog",
+          "* (checks whose coefficient names differ across Stata / package versions are wrapped in capture noisily)",
+          "* Aetheris uses iterated linear least squares (Blundell-Robin); Stata nlsur gives the ML estimate: compare to ~2 decimals."]
+    for i in range(5):
+        L.append(f'capture noisily chk "QUAIDS beta{i + 1}" _b[beta:beta_{i + 1}] {float(q["beta"][i])!r} 2e-2')
+    del np
+    return ["\n".join(L)]
+
+
 def main():
     farm = farm_survey_demo()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -405,6 +459,7 @@ def main():
     parts += v17_blocks()
     parts += v18_blocks()
     parts += v19_blocks()
+    parts += v110_blocks()
     parts += ['\ndisplay _n "Total failures: $fails"',
               'if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."']
     (OUT / "stata_check.do").write_text("\n".join(parts) + "\n", encoding="utf-8")
