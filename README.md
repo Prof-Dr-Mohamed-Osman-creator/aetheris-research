@@ -17,7 +17,7 @@ A complete research workflow inside one integrated environment:
 
 ## Current Status
 
-- Version: `1.9.0-alpha`
+- Version: `1.10.0-alpha`
 - Live: https://aetheris-research.streamlit.app
 - Languages: English + Arabic (full RTL support)
 - ✅ Data Hub: file upload, World Bank WDI, FRED, Data Basket (multi-dataset memory + merge)
@@ -30,6 +30,7 @@ A complete research workflow inside one integrated environment:
 - ✅ **Econometrics Lab v1.7 (catalogue §1.8, §1.9):** VAR (lag selection, stability, portmanteau / LM / Edgerton-Shukur / multivariate JB and ARCH, Granger, instantaneous and Toda-Yamamoto causality, orthogonalised and generalised IRF with bootstrap bands, FEVD, forecasts); structural VAR (A / B / AB by scoring ML, Blanchard-Quah); cointegration (Engle-Granger + ECM, Johansen with the five deterministic cases and simulated p-values, Gregory-Hansen, FMOLS / DOLS / CCR); VECM (β, α, Γ, β and weak-exogeneity LR tests, levels IRF); ARDL bounds testing (five cases, simulated asymptotic and finite-sample critical values, long-run multipliers, restricted ECM, CUSUM), NARDL with asymmetry tests and dynamic multipliers, QARDL; volatility — ARCH, GARCH, GARCH-M, GJR / TGARCH, EGARCH with normal / t / GED / skew-t errors, robust SEs, news impact, VaR / ES backtests, and CCC / DCC / BEKK with the Engle-Sheppard test and hedge ratios. Validated against R vars, urca, cointReg, ARDL, quantreg, fGarch (`tests/test_r_crosscheck_v17.py`) and the Python arch package; Stata checks added to `docs/validation/stata_check.do`.
 - ✅ **Econometrics Lab v1.8 (catalogue §1.15 — panel data):** pooled, one- and two-way FE, Swamy-Arora RE, between, FD and FGLS; F, Breusch-Pagan / Honda, Hausman and robust (Mundlak) Hausman, Pesaran CD / LM / scaled LM, Wooldridge serial correlation, modified Wald, Pesaran-Yamagata slope homogeneity; cluster, Driscoll-Kraay and PCSE standard errors; panel unit roots (LLC, IPS, Maddala-Wu, Choi, Hadri, CIPS) and cointegration (Kao, Pedroni, Westerlund); difference and system GMM (Arellano-Bond / Blundell-Bond, Windmeijer, Hansen, AR(1)/AR(2), collapse, long-run effects); panel ARDL (PMG, MG, DFE with Hausman tests); MG / CCE-MG / CCE pooled, interactive fixed effects (Bai), Hansen panel threshold with bootstrap, panel VAR with IRFs; Dumitrescu-Hurlin causality. Validated against R plm / pgmm (`tests/test_r_crosscheck_v18.py`); Stata checks (xtreg, xtgls, xtabond2) added to `docs/validation/stata_check.do`.
 - ✅ **Forecasting Studio v1.9 (catalogue §3.1–3.4, §3.6):** a new wing with an automatic model horse-race (rolling-origin backtests, MASE / RMSE ranking, Diebold-Mariano tests, combination of the top three); benchmarks, ETS (R forecast::ets conventions), theta, ARIMA / SARIMAX with automatic order selection, structural state-space models, BSTS (Gibbs sampler) and growth curves; nowcasting with bridge equations, MIDAS (U-MIDAS, exponential Almon, beta, Almon) and a mixed-frequency dynamic factor model; Bayesian VAR (Minnesota / NIW prior with marginal-likelihood λ) and local projections; HAR-RV, GARCH / EWMA / historical-simulation VaR backtests (Kupiec, Christoffersen) and volatility-forecast comparison (QLIKE, Mincer-Zarnowitz); random forest, gradient boosting, LightGBM, SVR with conformal intervals and a Prophet-style model; forecast combinations (inverse-MSE, Bates-Granger, Granger-Ramanathan); fan charts and scenario forecasts for decision-makers. Validated against R forecast and stats::nls (`tests/test_r_crosscheck_v19.py`); Stata checks added to `docs/validation/stata_check.do`.
+- ✅ **Applied Economics Lab v1.10 (catalogue §2.7–2.8):** a new wing with production functions (Cobb-Douglas, translog, CES, generalized Leontief, quadratic, transcendental, Leontief) and their economics (elasticities, RTS, Allen / Morishima substitution, stages of production, isoquants); yield response with the economic optimum rate; optimal input use (VMP = price); cubic and long-run cost, scale and scope economies; translog cost and profit systems by restricted iterated SUR; stochastic frontiers (half-normal, truncated, exponential, Battese-Coelli 1995 determinants, Battese-Coelli 1992 panel), meta-frontier, DEA and Malmquist; Olley-Pakes / Levinsohn-Petrin / ACF and Törnqvist / Fisher productivity; Nerlove supply response and cobweb; demand, Engel curves, LES, LA-AIDS, AIDS, QUAIDS and Rotterdam with exact welfare measures; consumption functions. Validated against R nls, systemfit and lpSolve (`tests/test_r_crosscheck_v110.py`); Stata checks (frontier, xtfrontier, quaids) added to `docs/validation/stata_check.do`.
 - Strategic plan: see [ROADMAP.md](ROADMAP.md) · Full model catalogue: [docs/MODEL_CATALOG.md](docs/MODEL_CATALOG.md)
 
 ## Project Structure
@@ -86,6 +87,10 @@ aetheris-research/
 │   ├── nowcast.py             # v1.9 bridge, MIDAS, dynamic factors, BVAR, local projections
 │   ├── fcst_report.py         # v1.9 interpretation, methodology, Python / R / Stata code
 │   ├── forecast_ui.py         # v1.9 Forecasting Studio wing
+│   ├── production.py          # v1.10 production, cost, SUR, frontiers, DEA, Malmquist, TFP
+│   ├── demand.py              # v1.10 supply response, demand, Engel, demand systems, welfare, consumption
+│   ├── applied_report.py      # v1.10 methodology, references, Python / R / Stata code
+│   ├── applied_ui.py          # v1.10 Applied Economics Lab wing
 │   ├── charts.py              # Academic chart engine (17 chart types)
 │   └── chart_builder_ui.py    # Chart Builder
 ├── tests/                     # Unit tests (pytest)

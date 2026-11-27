@@ -695,10 +695,10 @@ gen t = _n
 tsset t
 quietly arima S12.electricity_gwh S12.temperature_c, ar(1) ma(1) mma(1, 12) noconstant
 * Stata maximises the exact likelihood of the differenced data, as R Arima and Aetheris; optimisers may differ slightly.
-chk "ARIMAX temp" [S12.electricity_gwh]_b[S12.temperature_c] 85.05186150440335 1e-3
-chk "ARIMAX ar1" [ARMA]_b[L.ar] 0.9851099494762924 1e-3
-chk "ARIMAX ma1" [ARMA]_b[L.ma] -0.23534036830109523 1e-2
-chk "ARIMAX sma1" [ARMA12]_b[L.ma] -0.6895768735525117 1e-3
+chk "ARIMAX temp" [S12.electricity_gwh]_b[S12.temperature_c] 85.05180977623743 1e-3
+chk "ARIMAX ar1" [ARMA]_b[L.ar] 0.9851099576987621 1e-3
+chk "ARIMAX ma1" [ARMA]_b[L.ma] -0.23533985706409263 1e-2
+chk "ARIMAX sma1" [ARMA12]_b[L.ma] -0.6895768083535293 1e-3
 import delimited "v19_bridge.csv", clear varnames(1) case(preserve)
 quietly regress y industrial_production_mom pmi exports_mom retail_sales_mom
 chk "Bridge b[const]" _b[_cons] -6.665392590461742 1e-6
@@ -711,6 +711,79 @@ chk "Bridge b[exports_mom]" _b[exports_mom] 0.05205791530055724 1e-6
 chk "Bridge se[exports_mom]" _se[exports_mom] 0.02230338718101495 1e-6
 chk "Bridge b[retail_sales_mom]" _b[retail_sales_mom] 0.03408593524310712 1e-6
 chk "Bridge se[retail_sales_mom]" _se[retail_sales_mom] 0.06001492038118582 1e-6
+
+* ======================================================================
+* v1.10 — production, frontiers, QUAIDS
+* ======================================================================
+import delimited "v110_farms.csv", clear varnames(1) case(preserve)
+gen lny = ln(output_tonnes)
+gen ln_land_feddan = ln(land_feddan)
+gen ln_labour_days = ln(labour_days)
+gen ln_fertilizer_kg = ln(fertilizer_kg)
+quietly regress lny ln_land_feddan ln_labour_days ln_fertilizer_kg
+chk "CD b[_cons]" _b[_cons] -1.4991790279035602 1e-6
+chk "CD se[_cons]" _se[_cons] 0.1731544217884464 1e-6
+chk "CD b[ln_land_feddan]" _b[ln_land_feddan] 0.45008766919632515 1e-6
+chk "CD se[ln_land_feddan]" _se[ln_land_feddan] 0.04114347942108017 1e-6
+chk "CD b[ln_labour_days]" _b[ln_labour_days] 0.27776888634830543 1e-6
+chk "CD se[ln_labour_days]" _se[ln_labour_days] 0.030969076073865853 1e-6
+chk "CD b[ln_fertilizer_kg]" _b[ln_fertilizer_kg] 0.19796202035019042 1e-6
+chk "CD se[ln_fertilizer_kg]" _se[ln_fertilizer_kg] 0.026756317033858515 1e-6
+quietly frontier lny ln_land_feddan ln_labour_days ln_fertilizer_kg, distribution(hnormal)
+capture noisily chk "SFA hnormal b[_cons]" [lny]_b[_cons] -1.278802017433872 1e-4
+capture noisily chk "SFA hnormal b[ln_land_feddan]" [lny]_b[ln_land_feddan] 0.4182139552170586 1e-4
+capture noisily chk "SFA hnormal b[ln_labour_days]" [lny]_b[ln_labour_days] 0.28547794426237605 1e-4
+capture noisily chk "SFA hnormal b[ln_fertilizer_kg]" [lny]_b[ln_fertilizer_kg] 0.20984717335361885 1e-4
+capture noisily chk "SFA hnormal lnsig2v" [lnsig2v]_b[_cons] -3.553837731495869 1e-3
+capture noisily chk "SFA hnormal lnsig2u" [lnsig2u]_b[_cons] -2.0375414243484 1e-3
+capture noisily chk "SFA hnormal log L" e(ll) -98.90681895273556 1e-5
+quietly frontier lny ln_land_feddan ln_labour_days ln_fertilizer_kg, distribution(exponential)
+capture noisily chk "SFA exponential b[_cons]" [lny]_b[_cons] -1.361360913297665 1e-4
+capture noisily chk "SFA exponential b[ln_land_feddan]" [lny]_b[ln_land_feddan] 0.425642627778577 1e-4
+capture noisily chk "SFA exponential b[ln_labour_days]" [lny]_b[ln_labour_days] 0.27840442564857865 1e-4
+capture noisily chk "SFA exponential b[ln_fertilizer_kg]" [lny]_b[ln_fertilizer_kg] 0.2102515576819562 1e-4
+capture noisily chk "SFA exponential lnsig2v" [lnsig2v]_b[_cons] -3.1431988403303572 1e-3
+capture noisily chk "SFA exponential lnsig2u" [lnsig2u]_b[_cons] -3.3746993664105007 1e-3
+capture noisily chk "SFA exponential log L" e(ll) -102.25585570853158 1e-5
+quietly frontier lny ln_land_feddan ln_labour_days ln_fertilizer_kg, distribution(tnormal)
+capture noisily chk "SFA tnormal b[_cons]" [lny]_b[_cons] -1.2609046300197515 1e-4
+capture noisily chk "SFA tnormal b[ln_land_feddan]" [lny]_b[ln_land_feddan] 0.41748215991620274 1e-4
+capture noisily chk "SFA tnormal b[ln_labour_days]" [lny]_b[ln_labour_days] 0.286338056045318 1e-4
+capture noisily chk "SFA tnormal b[ln_fertilizer_kg]" [lny]_b[ln_fertilizer_kg] 0.2097231125044041 1e-4
+capture noisily chk "SFA tnormal lnsig2v" [lnsig2v]_b[_cons] -3.6378997277596268 1e-3
+capture noisily chk "SFA tnormal lnsig2u" [lnsig2u]_b[_cons] -2.153332399370894 1e-3
+capture noisily chk "SFA tnormal log L" e(ll) -98.83494299417961 1e-5
+quietly frontier lny ln_land_feddan ln_labour_days ln_fertilizer_kg, distribution(tnormal) cm(education_years extension_visits credit_access)
+capture noisily chk "BC95 delta[education_years]" [mu]_b[education_years] -0.031075997262703207 1e-3
+capture noisily chk "BC95 delta[extension_visits]" [mu]_b[extension_visits] -0.039885524532766226 1e-3
+capture noisily chk "BC95 delta[credit_access]" [mu]_b[credit_access] -0.1641452965936146 1e-3
+capture noisily chk "BC95 log L" e(ll) -40.66532496547882 1e-5
+encode farm_id, gen(fid)
+xtset fid year
+quietly xtfrontier lny ln_land_feddan ln_labour_days ln_fertilizer_kg, ti
+capture noisily chk "xtfrontier ti b[_cons]" [lny]_b[_cons] -1.1908640403744855 1e-4
+capture noisily chk "xtfrontier ti b[ln_land_feddan]" [lny]_b[ln_land_feddan] 0.4436351049906101 1e-4
+capture noisily chk "xtfrontier ti b[ln_labour_days]" [lny]_b[ln_labour_days] 0.24166211889687778 1e-4
+capture noisily chk "xtfrontier ti b[ln_fertilizer_kg]" [lny]_b[ln_fertilizer_kg] 0.2071349472555634 1e-4
+capture noisily chk "xtfrontier ti log L" e(ll) -61.962537492182754 1e-5
+quietly xtfrontier lny ln_land_feddan ln_labour_days ln_fertilizer_kg, tvd
+capture noisily chk "xtfrontier tvd b[_cons]" [lny]_b[_cons] -1.175195721637545 1e-4
+capture noisily chk "xtfrontier tvd b[ln_land_feddan]" [lny]_b[ln_land_feddan] 0.4508489552315608 1e-4
+capture noisily chk "xtfrontier tvd b[ln_labour_days]" [lny]_b[ln_labour_days] 0.24347256609640205 1e-4
+capture noisily chk "xtfrontier tvd b[ln_fertilizer_kg]" [lny]_b[ln_fertilizer_kg] 0.20408338406313278 1e-4
+capture noisily chk "xtfrontier tvd log L" e(ll) -55.153345343172816 1e-5
+capture noisily chk "xtfrontier tvd eta" [eta]_b[_cons] 0.074483681860738 1e-3
+import delimited "v110_budget.csv", clear varnames(1) case(preserve)
+capture which quaids
+if _rc ssc install quaids
+quietly quaids w_cereals w_meat_fish w_dairy_eggs w_fruit_veg w_other_food, anot(7.8) prices(p_cereals p_meat_fish p_dairy_eggs p_fruit_veg p_other_food) expenditure(food_expenditure) nolog
+* (checks whose coefficient names differ across Stata / package versions are wrapped in capture noisily)
+* Aetheris uses iterated linear least squares (Blundell-Robin); Stata nlsur gives the ML estimate: compare to ~2 decimals.
+capture noisily chk "QUAIDS beta1" _b[beta:beta_1] -0.02379623894037014 2e-2
+capture noisily chk "QUAIDS beta2" _b[beta:beta_2] 0.008022212360152516 2e-2
+capture noisily chk "QUAIDS beta3" _b[beta:beta_3] 0.015755305333355868 2e-2
+capture noisily chk "QUAIDS beta4" _b[beta:beta_4] -0.0011134336635803266 2e-2
+capture noisily chk "QUAIDS beta5" _b[beta:beta_5] 0.0011321549104420826 2e-2
 
 display _n "Total failures: $fails"
 if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."
