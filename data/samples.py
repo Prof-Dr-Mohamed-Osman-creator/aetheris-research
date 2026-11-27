@@ -197,3 +197,87 @@ def quarterly_demo(seed: int = 5) -> pd.DataFrame:
         x[t] = x[t - 4] + 0.5 + rng.normal(0, 1.0)
     return pd.DataFrame({"quarter": pd.date_range("1990-01-01", periods=n, freq="QS"),
                          "ag_output_index": np.round(100 + x[4:], 2)})
+
+
+def macro_var_demo(seed: int = 21) -> pd.DataFrame:
+    """Synthetic quarterly macro system (1990Q1–2025Q4) for VAR / VECM training: log GDP, consumption and investment
+    share one stochastic trend (two cointegrating relations c − y and i − y), while inflation and the policy rate form a
+    stationary block in which the rate reacts to inflation and feeds back into output growth."""
+    rng = np.random.default_rng(seed)
+    n = 144
+    infl, rate = np.full(n, 8.0), np.full(n, 10.0)
+    y, u1, u2 = np.zeros(n), np.zeros(n), np.zeros(n)
+    y[0] = 6.0
+    for t in range(1, n):
+        infl[t] = 3.2 + 0.6 * infl[t - 1] + rng.normal(0, 1.2)
+        rate[t] = 1.5 + 0.65 * rate[t - 1] + 0.30 * infl[t - 1] + rng.normal(0, 0.6)
+        y[t] = y[t - 1] + 0.010 - 0.0012 * (rate[t - 1] - 10.0) + rng.normal(0, 0.008)
+        u1[t] = 0.70 * u1[t - 1] + rng.normal(0, 0.010)
+        u2[t] = 0.80 * u2[t - 1] + rng.normal(0, 0.030)
+    c = y - 0.25 + u1
+    inv = y - 1.60 + u2
+    return pd.DataFrame({"quarter": pd.date_range("1990-01-01", periods=n, freq="QS"),
+                         "gdp_bn": np.round(np.exp(y), 2), "consumption_bn": np.round(np.exp(c), 2),
+                         "investment_bn": np.round(np.exp(inv), 2), "inflation_pct": np.round(infl, 2),
+                         "policy_rate_pct": np.round(rate, 2)})
+
+
+def price_transmission_demo(seed: int = 8) -> pd.DataFrame:
+    """Synthetic monthly wheat price transmission (2005-01 – 2025-12): world price and exchange rate (with two
+    devaluations) form the import-parity price; the domestic price adjusts to it with asymmetric pass-through
+    (long-run 0.85 for increases, 0.60 for decreases) — for ARDL bounds testing and NARDL."""
+    rng = np.random.default_rng(seed)
+    n = 252
+    date = pd.date_range("2005-01-01", periods=n, freq="MS")
+    lw = 5.3 + np.cumsum(rng.normal(0, 0.03, n))
+    le = np.log(5.6) + np.cumsum(rng.normal(0.002, 0.008, n))
+    le[date >= "2016-11-01"] += np.log(2.0)
+    le[date >= "2024-03-01"] += np.log(1.55)
+    x = lw + le
+    dx = np.r_[0.0, np.diff(x)]
+    xp, xn = np.cumsum(np.maximum(dx, 0)), np.cumsum(np.minimum(dx, 0))
+    rain = rng.normal(0, 1, n)
+    d = np.zeros(n)
+    c0 = 0.05 + x[0]
+    d[0] = c0
+    for t in range(1, n):
+        ec = d[t - 1] - c0 - 0.85 * xp[t - 1] - 0.60 * xn[t - 1]
+        dd_prev = d[t - 1] - d[t - 2] if t > 1 else 0.0
+        d[t] = d[t - 1] - 0.15 * ec + 0.30 * max(dx[t], 0) + 0.10 * min(dx[t], 0) + 0.20 * dd_prev \
+            - 0.004 * rain[t] + rng.normal(0, 0.018)
+    return pd.DataFrame({"date": date, "world_wheat_usd_t": np.round(np.exp(lw), 2),
+                         "exchange_rate_egp_usd": np.round(np.exp(le), 4), "import_parity_egp_t": np.round(np.exp(x), 1),
+                         "domestic_wheat_egp_t": np.round(np.exp(d), 1), "rainfall_anomaly": np.round(rain, 3)})
+
+
+def financial_returns_demo(seed: int = 4) -> pd.DataFrame:
+    """Synthetic daily prices (2018–2025, business days) of an equity index, a bank stock and gold, generated from
+    GJR-GARCH(1,1) margins with Student-t(6) shocks and DCC(1,1) correlations — for GARCH-family and multivariate
+    GARCH training. Analyse the log returns (×100)."""
+    rng = np.random.default_rng(seed)
+    date = pd.bdate_range("2018-01-01", "2025-12-31")
+    n = len(date)
+    par = [(0.03, 0.04, 0.10, 0.88, 0.04), (0.05, 0.05, 0.12, 0.85, 0.03), (0.01, 0.04, 0.02, 0.93, 0.02)]
+    Rbar = np.array([[1.0, 0.65, -0.10], [0.65, 1.0, -0.05], [-0.10, -0.05, 1.0]])
+    a, b = 0.04, 0.93
+    Q = Rbar.copy()
+    h = np.array([w / (1 - al - g / 2 - be) for w, al, g, be, _ in par])
+    r = np.zeros((n, 3))
+    zprev = np.zeros(3)
+    eprev = np.zeros(3)
+    nu = 6.0
+    for t in range(n):
+        if t:
+            Q = (1 - a - b) * Rbar + a * np.outer(zprev, zprev) + b * Q
+            h = np.array([w + (al + g * (eprev[i] < 0)) * eprev[i] ** 2 + be * h[i]
+                          for i, (w, al, g, be, _) in enumerate(par)])
+        d = 1 / np.sqrt(np.diag(Q))
+        R = Q * np.outer(d, d)
+        t6 = rng.standard_t(nu, 3) * np.sqrt((nu - 2) / nu)
+        z = np.linalg.cholesky(R) @ t6
+        eprev = np.sqrt(h) * z
+        zprev = z
+        r[t] = np.array([p[4] for p in par]) + eprev
+    prices = 100 * np.exp(np.cumsum(r / 100, axis=0))
+    return pd.DataFrame({"date": date, "equity_index": np.round(prices[:, 0] * 120, 2),
+                         "bank_stock_egp": np.round(prices[:, 1] * 0.6, 3), "gold_usd_oz": np.round(prices[:, 2] * 13.2, 2)})

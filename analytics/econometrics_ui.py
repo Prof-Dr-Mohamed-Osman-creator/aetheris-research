@@ -96,7 +96,10 @@ def render_econometrics():
               tr("✂️ Censored & selection", "✂️ المراقَبة والاختيار"),
               tr("🔢 Count data", "🔢 بيانات العدّ"),
               tr("⏳ Survival & duration", "⏳ البقاء والمدة"),
-              tr("📉 Time series", "📉 السلاسل الزمنية")]
+              tr("📉 Time series", "📉 السلاسل الزمنية"),
+              tr("🔗 VAR & cointegration", "🔗 VAR والتكامل المشترك"),
+              tr("📐 ARDL / NARDL", "📐 ARDL / NARDL"),
+              tr("🌪️ Volatility (GARCH)", "🌪️ التقلب (GARCH)")]
     tabs = st.tabs(labels)
     with tabs[0]:
         _builder_tab(df)
@@ -124,6 +127,13 @@ def render_econometrics():
     with tabs[11]:
         from analytics import ts_ui
         ts_ui.render_ts(df)
+    from analytics import mts_ui
+    with tabs[12]:
+        mts_ui.render_mts(df)
+    with tabs[13]:
+        mts_ui.render_ardl(df)
+    with tabs[14]:
+        mts_ui.render_garch(df)
 
 
 def _demo_buttons():
@@ -140,6 +150,22 @@ def _demo_buttons():
     with c5:
         if st.button(tr("⚖️ Crop market (demand & supply)", "⚖️ سوق محصول (الطلب والعرض)"), key="eco_demo_sem"):
             set_memory(market_sem_demo(), source="demo (synthetic)", name="Demo – crop market SEM (synthetic)")
+            st.rerun()
+    c8, c9, c10 = st.columns(3)
+    with c8:
+        if st.button(tr("🏦 Macro system (quarterly, VAR / VECM)", "🏦 نظام كلي (ربع سنوي، VAR / VECM)"), key="eco_demo_var"):
+            from data.samples import macro_var_demo
+            set_memory(macro_var_demo(), source="demo (synthetic)", name="Demo – quarterly macro system (synthetic)")
+            st.rerun()
+    with c9:
+        if st.button(tr("🌾 Wheat price transmission (ARDL / NARDL)", "🌾 انتقال أسعار القمح (ARDL / NARDL)"), key="eco_demo_ardl"):
+            from data.samples import price_transmission_demo
+            set_memory(price_transmission_demo(), source="demo (synthetic)", name="Demo – wheat price transmission (synthetic)")
+            st.rerun()
+    with c10:
+        if st.button(tr("💹 Daily asset prices (GARCH)", "💹 أسعار أصول يومية (GARCH)"), key="eco_demo_garch"):
+            from data.samples import financial_returns_demo
+            set_memory(financial_returns_demo(), source="demo (synthetic)", name="Demo – daily asset prices (synthetic)")
             st.rerun()
     c6, c7 = st.columns(2)
     with c6:
