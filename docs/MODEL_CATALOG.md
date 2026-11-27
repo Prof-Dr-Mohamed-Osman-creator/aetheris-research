@@ -192,107 +192,168 @@
 ---
 
 ## 2. محور النماذج الاقتصادية التطبيقية — Applied Economic Models
-> لكل نموذج: التقدير + المرونات + الرسوم الاقتصادية الخاصة به + التفسير الاقتصادي + المحاكاة لصانع القرار.
+> لكل نموذج: التقدير أو المعايرة + المرونات والمضاعفات + الرسوم الاقتصادية الخاصة به + التفسير الاقتصادي + **محاكاة السياسات لصانع القرار**.
+> ⚙️ = نماذج هيكلية كبيرة تحتاج محركات حل رياضية وبيانات خاصة (انظر القسم 9) · 🧠 = نماذج الذكاء الاصطناعي.
 
-### 2.1 دوال الإنتاج — Production
+### أولاً: النماذج الكلية والهيكلية — Macro & Structural
+
+#### 2.1 نماذج التوازن العام والمحاكاة الكلية — General Equilibrium & Macro Simulation
+- التوازن العام القابل للحساب (CGE) ⚙️، والديناميكي (DCGE) ⚙️ · Computable general equilibrium, dynamic CGE
+- نماذج التوازن الجزئي (PE) لأسواق السلع والسياسات التجارية والزراعية · Partial equilibrium models
+- التوازن العام الديناميكي العشوائي (DSGE)، والوكلاء غير المتجانسين النيو-كينزية (HANK) — انظر 1.19 🧠
+- نماذج الأجيال المتداخلة (OLG) ⚙️ · Overlapping generations
+
+#### 2.2 نماذج المدخلات والمخرجات والمحاسبة الاجتماعية — Input-Output & SAM
+- نموذج ليونتيف: المعكوس، والمضاعفات (الإنتاج، والدخل، والتوظيف)، والروابط الأمامية والخلفية، والقطاعات الرائدة · Leontief IO, multipliers, linkages, key sectors
+- المدخلات والمخرجات متعددة الأقاليم (MRIO)، والبصمة المائية والكربونية · Multi-regional IO, water & carbon footprints
+- مصفوفة المحاسبة الاجتماعية (SAM) ونماذج مضاعفاتها، وتحليل المسار البنائي · SAM, SAM multipliers, structural path analysis
+
+#### 2.3 نماذج النمو والتنمية الاقتصادية — Growth & Development
+- سولو-سوان، ونماذج النمو الداخلي (رومر، ولوكاس)، وهارود-دومار · Solow-Swan, endogenous growth, Harrod-Domar
+- نماذج الفجوة المزدوجة والثلاثية · Two-gap & three-gap models
+- التحول الهيكلي (لويس، وتشينري) · Structural change (Lewis, Chenery)
+- محاسبة النمو والإنتاجية الكلية (بواقي سولو)، والتقارب (بيتا وسيجما) · Growth accounting, TFP, convergence
+
+#### 2.4 نماذج التجارة الدولية والاقتصاد المفتوح — International Trade & Open Economy
+- نموذج الجاذبية للتجارة (PPML والآثار الثابتة المتعددة) · Gravity models
+- هيكشر-أولين التطبيقي، وماندل-فليمنج، ونموذج دورنبوش لتجاوز سعر الصرف · Heckscher-Ohlin, Mundell-Fleming, Dornbusch overshooting
+- مشروع تحليل التجارة العالمية (GTAP) ⚙️ · GTAP
+- الميزة النسبية الظاهرة (RCA، وRSCA، ولافاي)، وتحليل حصة السوق الثابتة · Revealed comparative advantage, constant market share
+- مؤشرات التركز وعدم الاستقرار للصادرات، والتجارة البينية (جروبل-لويد) · Export concentration & instability, intra-industry trade
+- دالة الطلب على الواردات، وانتقال أثر سعر الصرف، وشرط مارشال-ليرنر، ومنحنى J · Import demand, ERPT, Marshall-Lerner, J-curve
+
+#### 2.5 الاقتصاد الكلي الهيكلي والسياسات المالية والنقدية — Structural Macro & Policy
+- النماذج الكلية القياسية واسعة النطاق (على غرار FRB/US) ⚙️ · Large-scale macroeconometric models
+- منحنى فيليبس النيو-كينزي (NKPC)، وقاعدة تايلور · New Keynesian Phillips curve, Taylor rule
+- **تحليل استدامة الدين العام (DSA)** مع رسم المروحة للدين · Debt sustainability analysis
+- نماذج التوازن بين المخزون والتدفق (SFC) · Stock-flow consistent models
+- دوال الاستهلاك والاستثمار والطلب على النقود، وقانون أوكن، والعجز التوأم · Consumption, investment, money demand, Okun, twin deficits
+
+#### 2.6 اقتصاديات البيئة والمناخ والطاقة — Environment, Climate & Energy
+- نماذج التقييم المتكامل للمناخ والاقتصاد: DICE وRICE وPAGE ⚙️، والتكلفة الاجتماعية للكربون · IAMs, social cost of carbon
+- نماذج أنظمة الطاقة والاقتصاد (MARKAL / TIMES) ⚙️ · Energy-economy systems
+- منحنى كوزنتس البيئي التطبيقي، ونماذج المناخ والإنتاجية (انظر 1.26) · EKC, climate-yield models
+
+### ثانياً: النماذج الجزئية التطبيقية — Applied Microeconomic Models
+
+#### 2.7 الإنتاج والتكاليف والكفاءة — Production, Cost & Efficiency
 | النموذج | Model | المخرجات والرسوم |
 |---|---|---|
-| كوب-دوجلاس، CES، ترانسلوج، التربيعية، ليونتيف المعممة، الترانسندنتالية | Cobb-Douglas, CES, translog, quadratic, generalized Leontief, transcendental | المرونات الإنتاجية، والعائد للسعة، ومرونات الإحلال (ألن، موريشيما)، ومنحنيات الناتج المتوسط والحدي، **ومراحل الإنتاج الثلاث**، وخريطة منحنيات الناتج المتساوي |
-| دوال استجابة المحصول للسماد: سبيلمان، ميتشرليخ، الخطي-الهضبة، التربيعي-الهضبة | Yield response: Spillman, Mitscherlich, linear/quadratic-plateau | **الكمية الاقتصادية المثلى** من السماد عند تساوي قيمة الناتج الحدي مع السعر، ورسم الاستجابة |
-| الكميات المثلى للموارد وكفاءة استخدامها | Optimal input use, VMP = price | نسب قيمة الناتج الحدي إلى السعر لكل مورد |
+| كوب-دوجلاس، وCES، والمتسامية اللوغاريتمية (ترانسلوج)، وليونتيف ذات النسب الثابتة، وليونتيف المعممة، والتربيعية والتربيعية المعيارية، والترانسندنتالية | Cobb-Douglas, CES, translog, Leontief, generalized Leontief, quadratic & normalized quadratic, transcendental | المرونات الإنتاجية، والعائد للسعة، ومرونات الإحلال (ألن، موريشيما)، ومنحنيات الناتج المتوسط والحدي، **ومراحل الإنتاج الثلاث**، ومنحنيات الناتج المتساوي |
+| دوال استجابة المحصول للسماد: سبيلمان، وميتشرليخ، والخطي-الهضبة، والتربيعي-الهضبة | Yield response functions | **الكمية الاقتصادية المثلى** من السماد ورسم الاستجابة |
+| الكميات المثلى للموارد | Optimal input use (VMP = price) | نسب قيمة الناتج الحدي إلى السعر لكل مورد |
+| دالة التكاليف التكعيبية، وطويلة الأجل، ووفورات السعة والنطاق | Cubic & long-run cost, economies of scale & scope | منحنيات التكاليف، و**الحجم الأمثل**، ونقطة التعادل وإغلاق المنشأة، والحجم الأدنى الكفء |
+| دوال التكاليف كوب-دوجلاس وترانسلوج مع معادلات الحصص (ليما شيفرد، SUR)، ودوال الربح | Cost functions with share equations, profit functions | مرونات الطلب على المدخلات ومرونات الإحلال والعرض |
+| الحدود العشوائية (SFA) للإنتاج والتكاليف، ومحددات عدم الكفاءة (باتيس-كويلي)، وSFA للبانل، والحدود الفوقية | SFA (production & cost), Battese-Coelli, panel SFA, meta-frontier | الكفاءة الفنية والتخصيصية والاقتصادية لكل وحدة |
+| DEA ومؤشر مالمكويست (انظر 5.12) | DEA & Malmquist (see 5.12) | — |
+| **تقدير الإنتاجية الكلية للعوامل**: أولي-باكس، وليفينسون-بترين، وأكربرغ-كيفز-فريزر، والأرقام القياسية (تورنكفيست، وفيشر) | TFP estimation: Olley-Pakes, Levinsohn-Petrin, ACF; Törnqvist / Fisher indices | — |
 
-### 2.2 دوال التكاليف — Cost
-| النموذج | Model | المخرجات والرسوم |
-|---|---|---|
-| دالة التكاليف التكعيبية القصيرة الأجل | Cubic short-run cost | منحنيات التكاليف الكلية والمتوسطة والحدية، و**الحجم الأمثل للإنتاج**، ونقطة التعادل وإغلاق المنشأة |
-| دالة التكاليف طويلة الأجل ووفورات السعة | Long-run cost, economies of scale | الحجم الأدنى الكفء (MES) ومنحنى التكاليف طويل الأجل |
-| دوال التكاليف كوب-دوجلاس وترانسلوج مع معادلات الحصص (ليما شيفرد، SUR) | Cobb-Douglas / translog cost + share equations | مرونات الطلب على المدخلات، ومرونات الإحلال، ووفورات النطاق |
-| دوال الربح (التربيعية المعيارية، ترانسلوج) | Profit functions | مرونات العرض والطلب على المدخلات |
-
-### 2.3 دوال الطلب — Demand
+#### 2.8 استجابة العرض والطلب والاستهلاك — Supply Response, Demand & Consumption
 | النموذج | Model | المخرجات |
 |---|---|---|
-| دالة الطلب المفردة (خطية، لوغاريتمية مزدوجة) | Single-equation demand | المرونات السعرية والدخلية والتقاطعية |
+| نيرلوف (التعديل الجزئي والتوقعات المتكيفة)، واستجابة المساحة، وبيت العنكبوت، واستجابة العرض بنهج ARDL | Nerlove, acreage response, cobweb, ARDL supply response | مرونات العرض قصيرة وطويلة الأجل، ورسم تذبذب السعر والكمية |
+| دالة الطلب المفردة، ونماذج المرونة الساكنة والديناميكية | Single-equation demand, static & dynamic elasticity models | المرونات السعرية والدخلية والتقاطعية |
 | منحنيات إنجل (Working-Leser) | Engel curves | تصنيف السلع: ضرورية، أو كمالية، أو دنيا |
-| نظام الإنفاق الخطي (LES) | Linear Expenditure System | الإنفاق الأدنى للكفاف |
-| نظام الطلب شبه المثالي AIDS وLA-AIDS وQUAIDS | AIDS / LA-AIDS / QUAIDS | مصفوفة المرونات المعوَّضة (هيكس) وغير المعوَّضة (مارشال) |
-| نموذج روتردام | Rotterdam model | — |
-| الرفاه: فائض المستهلك والتغير التعويضي | Consumer surplus, compensating variation | أثر تغير الأسعار على رفاه الأسر (لصانع القرار) |
+| نظام الإنفاق الخطي (LES)، وAIDS وLA-AIDS وQUAIDS، وروتردام | LES, AIDS / QUAIDS, Rotterdam | مصفوفة مرونات هيكس ومارشال |
+| استهلاك دورة الحياة والدخل الدائم | Life-cycle & permanent income models | الميل الحدي للاستهلاك قصير وطويل الأجل |
+| الرفاه: فائض المستهلك والتغير التعويضي والمكافئ | Consumer surplus, compensating & equivalent variation | أثر تغير الأسعار على رفاه الأسر |
 
-### 2.4 العرض واستجابة العرض — Supply
-| النموذج | Model | المخرجات |
-|---|---|---|
-| نموذج نيرلوف (التعديل الجزئي والتوقعات المتكيفة) | Nerlove partial adjustment / adaptive expectations | مرونات العرض قصيرة وطويلة الأجل، ومعامل التعديل |
-| استجابة المساحة المزروعة للأسعار | Acreage response | — |
-| نموذج بيت العنكبوت | Cobweb model | رسم تذبذب السعر والكمية والاستقرار |
-| استجابة العرض بنهج ARDL وتصحيح الخطأ | Supply response via ARDL / ECM | — |
+#### 2.9 هياكل الأسواق والتنظيم الصناعي — Market Structure & Industrial Organization
+- مقاييس التركز (هيرفندال-هيرشمان، ونسب التركز CR4 وCR8) · HHI, concentration ratios
+- كورنو وبرتراند وستاكلبرج التطبيقية · Empirical Cournot, Bertrand, Stackelberg
+- قوة السوق وسلوك التسعير (NEIO، بريسناهان-لاو) · New Empirical IO, Bresnahan-Lau
+- بيري-ليفينسون-بايكس للطلب المتمايز (BLP) — انظر 1.6 · BLP
+- التواطؤ والتسعير الديناميكي · Collusion & dynamic pricing
+- المزادات الهيكلية (السعر الأول، والسعر الثاني، والقيمة المشتركة) · Structural auction models
+- الدخول والخروج من السوق (بريسناهان-رايس) · Entry-exit models
 
-### 2.5 تحليل الأسواق والأسعار — Markets & prices
-- انتقال الأسعار المتماثل وغير المتماثل (NARDL، التكامل المشترك العتبي) · symmetric / asymmetric price transmission
-- تكامل الأسواق وقانون السعر الواحد · market integration, law of one price
-- الهوامش التسويقية ونصيب المنتج من جنيه المستهلك · marketing margins, farmer's share
-- الأرقام القياسية الموسمية للأسعار · seasonal price indices
-- تقلب الأسعار (ARCH/GARCH) · price volatility
-- معدلات التبادل وأسعار التعادل · terms of trade, parity prices
+#### 2.10 الأسواق والأسعار والتسويق — Markets, Prices & Marketing
+- انتقال الأسعار المتماثل وغير المتماثل (NARDL، والتكامل المشترك العتبي) · Price transmission
+- تكامل الأسواق وقانون السعر الواحد · Market integration
+- الهوامش التسويقية ونصيب المنتج من جنيه المستهلك · Marketing margins, farmer's share
+- الأرقام القياسية الموسمية، وتقلب الأسعار (ARCH/GARCH)، ومعدلات التبادل وأسعار التعادل · Seasonal indices, volatility, terms of trade, parity prices
 
-### 2.6 التجارة الدولية — Trade
-- نموذج الجاذبية (PPML) · gravity model
-- الميزة النسبية الظاهرة (RCA، RSCA، لافاي) · revealed comparative advantage
-- تحليل حصة السوق الثابتة · constant market share analysis
-- مؤشرات التركز وعدم الاستقرار للصادرات، والتجارة البينية (جروبل-لويد) · export concentration & instability, intra-industry trade
-- دالة الطلب على الواردات وانتقال أثر سعر الصرف، وشرط مارشال-ليرنر، ومنحنى J · import demand, exchange-rate pass-through, Marshall-Lerner, J-curve
+#### 2.11 التسعير الهيدوني وتقييم السلع غير السوقية — Hedonic Pricing & Non-Market Valuation
+- التسعير الهيدوني (روزن) · Hedonic pricing
+- التقييم المشروط (الرغبة في الدفع والقبول) · Contingent valuation
+- تجارب الاختيار المنفصل (DCE) · Discrete choice experiments
+- تكلفة السفر للسلع البيئية · Travel cost models
 
-### 2.7 الاقتصاد الكلي والنمو — Macro & growth
-- دوال الاستهلاك والاستثمار (المعجّل) والطلب على النقود · consumption, investment, money demand
-- منحنى فيليبس، وقانون أوكن، وقاعدة تايلور · Phillips curve, Okun's law, Taylor rule
-- محاسبة النمو، والإنتاجية الكلية (بواقي سولو)، والتقارب (بيتا وسيجما) · growth accounting, TFP, convergence
-- منحنى كوزنتس البيئي (EKC) · environmental Kuznets curve
-- العجز التوأم، واستدامة الدين والمالية العامة · twin deficits, debt sustainability
+#### 2.12 سوق العمل ورأس المال البشري والرفاهية — Labour, Human Capital & Welfare
+- معادلة مينسر للأجور، وتجزئة أوكساكا-بلايندر · Mincer earnings, Oaxaca-Blinder
+- البحث والمطابقة في سوق العمل · Search & matching
+- عرض العمل المنفصل والمستمر · Discrete & continuous labour supply
+- **المحاكاة الدقيقة للضرائب والإعانات** (على غرار EUROMOD) ⚙️ · Tax-benefit microsimulation
+- الفقر (FGT) وعدم المساواة (جيني، وثايل، وأتكنسون) مع التجزئة، والمؤشرات المركبة (على غرار مؤشر التنمية البشرية) · Poverty, inequality decomposition, composite indices
 
-### 2.8 التنمية والفقر والتوزيع — Development & welfare
-- مقاييس الفقر (FGT)، والتفاوت (جيني، ثايل، أتكنسون) مع التجزئة · poverty and inequality with decomposition
-- تجزئة أوكساكا-بلايندر، ومعادلة مينسر للعائد على التعليم · Oaxaca-Blinder, Mincer equation
-- بناء المؤشرات المركبة (مثل مؤشر التنمية البشرية) · composite indices (HDI-type)
+#### 2.13 الاقتصاد الزراعي والموارد — Agricultural & Resource Economics
+- مؤشرات عدم الاستقرار والمخاطر (كادي-ديلا فالي، وكوبوك) · Instability indices
+- تبني التكنولوجيا (انظر 1.4: العقبة المزدوجة) · Technology adoption
+- النهج الريكاردي واستجابة الإنتاجية للمناخ (انظر 1.26) · Ricardian & climate response
+- الميزانيات المزرعية والهوامش الإجمالية · Farm budgets & gross margins
 
-### 2.9 الكفاءة والإنتاجية — Efficiency & productivity
-| النموذج | Model | الحالة |
-|---|---|---|
-| تحليل مغلف البيانات DEA: CCR، BCC، الكفاءة الفائقة، كفاءة الحجم | DEA: CCR, BCC, super-efficiency, scale efficiency | ⬜ |
-| مؤشر مالمكويست وتجزئته (تغير تقني، وتغير الكفاءة) | Malmquist productivity index | ⬜ |
-| تحليل الحدود العشوائية SFA: كوب-دوجلاس وترانسلوج، توزيعات نصف طبيعي ومبتور وأسي | Stochastic frontier analysis | ⬜ |
-| محددات عدم الكفاءة (باتيس وكويلي 1995)، وSFA للبانل | Battese-Coelli 1995, panel SFA | ⬜ |
-| الكفاءة الفنية والتخصيصية والاقتصادية، والحدود الفوقية | Technical / allocative / economic efficiency, meta-frontier | ⬜ |
-| الأرقام القياسية للإنتاجية (تورنكفيست، فيشر) | Törnqvist / Fisher TFP indices | ⬜ |
+#### 2.14 الاقتصاد المالي — Financial Economics
+- CAPM ونماذج فاما-فرنش، ودراسة الحدث · CAPM, Fama-French, event study
+- القيمة المعرضة للخطر، والمحفظة المثلى، والحد الكفء لماركوفيتز · VaR, Markowitz efficient frontier
 
-### 2.10 الاقتصاد الزراعي والبيئي والمناخ — Agricultural, environmental & climate
-- نماذج المناخ والإنتاجية: انظر المحور 1.26 · climate-yield models: see 1.26
-- تحليل عدم الاستقرار والمخاطر (معامل كوبوك، مؤشر عدم الاستقرار) · instability indices (Cuddy-Della Valle, Coppock)
-- تبني التكنولوجيا · technology adoption
-- التقييم الاحتمالي (الرغبة في الدفع)، وتكلفة الرحلة، والتسعير الهيدوني · contingent valuation, travel cost, hedonic pricing
+### ثالثاً: النماذج الاقتصادية التطبيقية بالذكاء الاصطناعي — AI-Driven Applied Economics 🧠
 
-### 2.11 المدخلات والمخرجات — Input-output
-- معكوس ليونتيف، والمضاعفات، والروابط الأمامية والخلفية · Leontief inverse, multipliers, linkages
-- مضاعفات مصفوفة الحسابات الاجتماعية (SAM) · SAM multipliers
+#### 2.15 الكلي والهيكلي — Macro & structural
+- المحاكاة الاقتصادية القائمة على الوكلاء الأذكياء (AI-ABM) · AI-driven agent-based models
+- التعلم المعزز للتوازن الاقتصادي والسياسة الضريبية («الاقتصادي الآلي» AI Economist، MARL) · AI Economist
+- التوازن العام العميق (Deep DSGE، وDeep HANK) · Deep equilibrium models
+- التوأم الرقمي للاقتصاد وسلاسل الإمداد · Economic & supply-chain digital twins
+- المحاكاة السلوكية التوليدية بوكلاء النماذج اللغوية الكبيرة (LLM Agents) · Generative agent simulations
+- تقدير الفقر والناتج المحلي من صور الأقمار الصناعية · Satellite-AI economic mapping
+- **الإنذار المبكر بالأزمات المالية والنظامية بالذكاء الاصطناعي** · AI early-warning systems
 
-### 2.12 الاقتصاد المالي — Financial economics
-- نموذج تسعير الأصول الرأسمالية (CAPM) ونماذج فاما-فرنش · CAPM, Fama-French
-- دراسة الحدث · event study
-- القيمة المعرضة للخطر، والمحفظة المثلى، والحد الكفء لماركوفيتز · VaR, Markowitz portfolio & efficient frontier
+#### 2.16 الجزئي — Micro
+- التسعير الخوارزمي والتواطؤ الذكي · Algorithmic pricing & AI collusion
+- تقدير مرونات الطلب بالتعلم العميق (DeepIV، وNeural-BLP) · Deep demand & elasticity estimation
+- تصميم الأسواق والمزادات والآليات بالذكاء الاصطناعي · AI market, auction & mechanism design
+- المحاكاة السلوكية للمستهلكين والمنشآت بالوكلاء الأذكياء · AI agent-based micro simulations
 
 ---
 
-## 3. محور التنبؤ — Forecasting Lab
-| المجموعة | النماذج |
-|---|---|
-| الأساليب البسيطة | الساذج، والساذج الموسمي، والمتوسطات المتحركة |
-| التمهيد الأسي | البسيط، وهولت، وهولت-وينترز، وإطار ETS |
-| بوكس-جنكنز | ARIMA، وSARIMA، واختيار الرتبة تلقائياً، وARIMAX مع متغيرات خارجية |
-| نماذج الاتجاه العام | الخطي، والتربيعي، والأسي، و**منحنيات النمو اللوجستية وجومبرتز** |
-| التنبؤ متعدد المتغيرات | VAR وVECM وBVAR، وARDL، والعوامل الديناميكية، والتنبؤ بنماذج الانحدار |
-| التنبؤ بالتقلب والبيانات المختلطة | GARCH، وHAR-RV، وMIDAS، و**التنبؤ الآني (Nowcasting)** |
-| التعلم الآلي والعميق | الغابات العشوائية، وتعزيز التدرج (XGBoost)، ونموذج Theta، وLSTM وGRU، وN-BEATS، وTFT، والنماذج الهجينة (انظر 1.23) |
-| الدمج والتقييم | التنبؤات المجمّعة؛ MAE وRMSE وMAPE وMASE ومعامل ثايل U؛ اختبار ديبولد-ماريانو؛ الاختبار التاريخي بالأصل المتدحرج |
-| العرض | فترات التنبؤ، ورسم المروحة، و**التنبؤ بالسيناريوهات لصانع القرار** |
+## 3. محور التنبؤ الاقتصادي والمالي — Economic & Financial Forecasting
+
+### 3.1 النماذج الإحصائية والكلاسيكية — Statistical & Classical
+- الساذج، والساذج الموسمي، والمتوسطات المتحركة · Naive, seasonal naive, moving averages
+- التمهيد الأسي (البسيط، وهولت، وهولت-وينترز، وإطار ETS) · Exponential smoothing
+- الفضاء الحالتي ومرشح كالمان · State-space models & Kalman filter
+- ARIMA وSARIMA وSARIMAX، مع اختيار الرتبة تلقائياً · ARIMA / SARIMA / SARIMAX
+- نموذج ثيتا · Theta
+- السلاسل الزمنية الهيكلية البايزية (BSTS) · Bayesian structural time series
+- نماذج الاتجاه العام ومنحنيات النمو (الخطي، والتربيعي، والأسي، واللوجستي، وجومبرتز) · Trend & growth curves
+
+### 3.2 التنبؤ الاقتصادي الكلي والآني — Macro & Nowcasting
+- **التنبؤ الآني** (معادلات الجسر، وMIDAS) · Nowcasting: bridge equations, MIDAS
+- العوامل الديناميكية (DFM)، وBVAR، وVAR وVECM وARDL · DFM, BVAR, VAR / VECM / ARDL
+- الإسقاطات المحلية للتنبؤ متعدد الآفاق · Local projections
+- **تجميع التنبؤات** (المتوسط، والأوزان المثلى، والتجميع البايزي) · Forecast combination / ensembles
+
+### 3.3 التنبؤ المالي والتقلب — Financial & Volatility
+- التنبؤ بالتقلب (GARCH، وHAR-RV) والقيمة المعرضة للخطر · Volatility & VaR forecasting
+
+### 3.4 التنبؤ بالتعلم الآلي — Machine-Learning Forecasting
+- تعزيز التدرج (XGBoost، وLightGBM، وCatBoost) للسلاسل الزمنية · Gradient boosting
+- الغابات العشوائية، وآلات المتجهات الداعمة (SVR) · Random forest, SVR
+- Prophet وNeuralProphet · Prophet / NeuralProphet
+
+### 3.5 التنبؤ بالذكاء الاصطناعي والتعلم العميق — AI & Deep Learning 🧠
+- الشبكات العصبية المتكررة (RNN، وLSTM، وBi-LSTM، وGRU) · Recurrent networks
+- المحولات للسلاسل الزمنية (TFT، وInformer، وAutoformer، وPatchTST) · Transformers
+- N-BEATS وN-HiTS · Neural basis expansion
+- التنبؤ العميق الاحتمالي (DeepAR) · DeepAR
+- الخزان الحوسبي (Echo State Networks) · Reservoir computing
+- **النماذج التأسيسية للسلاسل الزمنية** (TimesFM، وChronos، وLag-Llama، وTimeGPT) · Time-series foundation models
+- النماذج الهجينة (ARIMA-ANN، وGARCH-LSTM) — انظر 1.23 · Hybrid models
+
+### 3.6 تقييم التنبؤ وعرضه — Evaluation & Presentation (لكل النماذج)
+- مقاييس الدقة: MAE، وRMSE، وMAPE، وsMAPE، وMASE، ومعامل ثايل U · Accuracy metrics
+- اختبار ديبولد-ماريانو، والاختبار التاريخي بالأصل المتدحرج · Diebold-Mariano, rolling-origin backtesting
+- فترات التنبؤ، ورسم المروحة، و**التنبؤ بالسيناريوهات لصانع القرار** · Prediction intervals, fan charts, scenario forecasting
+- **مسابقة النماذج**: تشغيل عدة نماذج على السلسلة نفسها وترتيبها حسب الدقة · Automatic model horse-race
 
 ---
 
@@ -426,7 +487,7 @@
 | DEA الشبكي (متعدد المراحل) | Network DEA |
 | **DEA بالبوتستراب** (Simar-Wilson) لفترات الثقة، ثم تحليل المرحلة الثانية (توبيت، والانحدار المبتور) لمحددات الكفاءة | Bootstrap DEA, second-stage Tobit / truncated regression |
 | المقارنة المرجعية: الوحدات المرجعية (Peers) والقيم المستهدفة للتحسين | Benchmarking: peers & improvement targets |
-| تحليل الحدود العشوائية SFA (انظر 2.9) والمقارنة بين DEA وSFA | SFA cross-reference & DEA–SFA comparison |
+| تحليل الحدود العشوائية SFA (انظر 2.7) والمقارنة بين DEA وSFA | SFA cross-reference & DEA–SFA comparison |
 | مؤشرات الأداء المركبة وبطاقة الأداء المتوازن | Composite KPIs, balanced scorecard |
 
 ### 5.13 الأنظمة المعقدة — Complex Systems
@@ -513,18 +574,22 @@
 | v1.6 | 1.7 السلاسل الزمنية الأحادية + جذور الوحدة |
 | v1.7 | 1.8 المتعددة والتكامل المشترك (VAR، VECM، ARDL، NARDL) + 1.9 التقلب |
 | v1.8 | 1.15 البانل كاملاً |
-| v1.9 | 3. محور التنبؤ (الكلاسيكي) |
-| v1.10 | 2.1–2.4 الإنتاج والتكاليف والطلب والعرض |
+| v1.9 | 3.1–3.4 و3.6 التنبؤ: الكلاسيكي، والكلي والآني، والمالي، والتعلم الآلي، مع مسابقة النماذج |
+| v1.10 | 2.7–2.8 الإنتاج والتكاليف والكفاءة، والعرض والطلب والاستهلاك |
 | v1.11 | 1.14 الكمي + 1.20 تقييم السياسات + 1.16 المكاني + 1.26 المناخ والطاقة |
 | v1.12 | 8. استوديو التقارير + مساعد الذكاء الاصطناعي + لوحة صانع القرار |
 | v2.0 – v2.0.8 | 5.1–5.13 بحوث العمليات (ثلاثة إصدارات) + 6. تقييم المشروعات |
 | v2.0.9 | 5.14 التحسين الحصين والضبابي + 5.15 الخوارزميات ما وراء الاستدلالية + 5.16 الشبكات وسلاسل الإمداد المتقدمة |
-| v2.1 | 2.5–2.12 الأسواق والتجارة والكلي والتنمية والكفاءة والمالية + 7. الأرقام القياسية |
+| v2.1 | 2.2–2.5 المدخلات والمخرجات، والنمو، والتجارة، والكلي والسياسات + 2.9–2.14 الأسواق والتنظيم الصناعي والتقييم والعمل والزراعة والمالية + 7. الأرقام القياسية |
 | v2.2 | 1.10–1.13 عالية التردد، والعوامل والأبعاد العالية، والمعاملات المتغيرة، واللامعلمي + 4. متعدد المتغيرات وSEM |
 | v2.3 | 1.6 الخيارات الهيكلية + 1.17 الشبكات والعدوى + 1.18 البايزي + 1.21 التعلم الآلي السببي |
-| v2.4 🧠 | 5.17 بحوث العمليات بالذكاء الاصطناعي + 1.19 DSGE وHANK + 1.22 العميق + 1.23 التنبؤ بالذكاء الاصطناعي + 1.24 النصوص والصور + 1.25 تحسين السياسات |
+| v2.3.5 ⚙️ | 2.1 التوازن العام (CGE وDCGE وOLG والتوازن الجزئي) + 2.4 GTAP + 2.5 النماذج الكلية واسعة النطاق + 2.6 IAMs وMARKAL/TIMES + 2.12 المحاكاة الدقيقة |
+| v2.4 🧠 | 2.15–2.16 الاقتصاد التطبيقي بالذكاء الاصطناعي + 3.5 التنبؤ العميق + 5.17 بحوث العمليات بالذكاء الاصطناعي + 1.19 DSGE وHANK + 1.22 العميق + 1.23 التنبؤ بالذكاء الاصطناعي + 1.24 النصوص والصور + 1.25 تحسين السياسات |
 | v2.5+ | الأكاديمية والمجتمع، والحسابات والاشتراكات |
 
+> ⚙️ **النماذج الهيكلية الكبيرة** (CGE وGTAP وMARKAL/TIMES وIAMs وOLG) تحتاج محركات حل للمعادلات غير الخطية الكبيرة (مثل IPOPT عبر Pyomo)،
+> وبعضها يحتاج قواعد بيانات بترخيص خاص (مثل قاعدة GTAP). ستُقدَّم بنماذج معايرة جاهزة قابلة للتعديل، مع إمكان رفع مصفوفة SAM أو بيانات الباحث.
+>
 > 🧠 **ملاحظة البنية التحتية:** نماذج التعلم العميق والتعلم المعزز وDSGE وHANK وتحليل صور الأقمار الصناعية تحتاج مكتبات ثقيلة (مثل PyTorch) وقدرة حوسبة،
 > وهي تتجاوز إمكانات الاستضافة المجانية لـ Streamlit. قبل الإصدار v2.4 سننقل الحسابات الثقيلة إلى خادم مستقل (API)، تبقى
 > الواجهة على Streamlit وتُرسل إليه المهام الثقيلة. بقية النماذج كلها تعمل على الاستضافة الحالية.
