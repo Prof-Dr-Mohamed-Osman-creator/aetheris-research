@@ -771,12 +771,12 @@ def sfa(df: pd.DataFrame, y: str, x: list, dist: str = "hnormal", cost: bool = F
     for st in (th0, np.r_[th0[:k], th0[k] - 0.5, th0[k + 1] + 0.5, th0[k + 2:]]):
         for meth in ("BFGS", "Nelder-Mead"):
             try:
-                r = optimize.minimize(f, st, method=meth, options={"maxiter": 20000, "gtol": 1e-8} if meth == "BFGS" else {"maxiter": 40000, "xatol": 1e-9, "fatol": 1e-11})
+                r = optimize.minimize(f, st, method=meth, options={"maxiter": 2000, "gtol": 1e-8} if meth == "BFGS" else {"maxiter": 6000, "xatol": 1e-9, "fatol": 1e-11})
                 if np.isfinite(r.fun) and (best is None or r.fun < best.fun):
                     best = r
             except Exception:  # noqa: BLE001
                 continue
-    r = optimize.minimize(f, best.x, method="BFGS", options={"gtol": 1e-9, "maxiter": 5000})
+    r = optimize.minimize(f, best.x, method="BFGS", options={"gtol": 1e-9, "maxiter": 2000})
     if r.fun <= best.fun:
         best = r
     th = best.x

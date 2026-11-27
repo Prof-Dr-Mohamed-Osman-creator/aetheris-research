@@ -197,7 +197,7 @@ def _production(df):
             st.dataframe(e["AES"].round(3), width="stretch")
         with c2:
             st.markdown("**" + tr("Morishima elasticities (row i → column j)", "مرونات موريشيما (الصف i ← العمود j)") + "**")
-            st.dataframe(e["MES"].round(3).astype(object).where(e["MES"].notna(), "—"), width="stretch")
+            st.dataframe(e["MES"].map(lambda v: "—" if pd.isna(v) else f"{v:.3f}"), width="stretch")
     c1, c2 = st.columns(2)
     with c1:
         j = st.selectbox(tr("Input for the stages of production", "المدخل لمراحل الإنتاج"), xs, key="ap_stage")
@@ -400,7 +400,7 @@ def _cost(df):
             st.markdown("**" + tr("Allen elasticities of substitution", "مرونات الإحلال لألن") + "**")
             st.dataframe(r["AES"].round(3), width="stretch")
             st.markdown("**" + tr("Morishima elasticities", "مرونات موريشيما") + "**")
-            st.dataframe(r["MES"].round(3).astype(object).where(r["MES"].notna(), "—"), width="stretch")
+            st.dataframe(r["MES"].map(lambda v: "—" if pd.isna(v) else f"{v:.3f}"), width="stretch")
         with c2:
             st.markdown("**" + tr("Price elasticities (row quantity, column price)", "المرونات السعرية (الصف: الكمية، العمود: السعر)") + "**")
             st.dataframe(r["elasticities"].round(3), width="stretch")
