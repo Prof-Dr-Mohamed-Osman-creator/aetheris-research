@@ -536,7 +536,11 @@ def system_fit(df: pd.DataFrame, equations: list, exog_all: list, method: str = 
     it = 0
     if method in ("3sls", "sur", "itsur"):
         for it in range(1, (maxiter if method == "itsur" else 1) + 1):
-            Si = np.linalg.inv(Sigma)
+            try:
+                Si = np.linalg.inv(Sigma)
+            except np.linalg.LinAlgError:
+                raise ValueError("The residual covariance matrix Σ̂ is singular (equations are linearly dependent, e.g. the "
+                                 "same dependent variable explained by the same regressors). Re-specify the system.") from None
             ks = [x.shape[1] for x in Xh]
             off = np.r_[0, np.cumsum(ks)]
             A = np.zeros((off[-1], off[-1]))

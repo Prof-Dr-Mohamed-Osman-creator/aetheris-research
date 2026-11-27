@@ -205,7 +205,7 @@ def journal_table(results: list, labels: list | None = None, inner: str = "se", 
                 coef_row[lab] = inner_row[lab] = ""
         rows += [coef_row, inner_row]
     lab_ar = {"N": "عدد المشاهدات", "R²": "R²", "Adj. R²": "R² المعدل", "F": "إحصاءة F", "AIC": "AIC", "BIC": "BIC",
-              "Dependent variable": "المتغير التابع", "Estimator": "طريقة التقدير", "Std. errors": "الأخطاء المعيارية"}
+              "Dependent variable": "المتغير التابع", "Pseudo R²": "R² الزائف", "Log-likelihood": "لوغاريتم دالة الإمكان", "Estimator": "طريقة التقدير", "Std. errors": "الأخطاء المعيارية"}
     sep = {"": "—" * 3}
     sep.update({lab: "" for lab in labels})
     rows.append(sep)

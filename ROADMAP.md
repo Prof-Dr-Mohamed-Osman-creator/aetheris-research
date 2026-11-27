@@ -50,6 +50,9 @@ Modular structure, bilingual UI, Smart Memory, file upload.
 Catalogue §1.1 (classical & cross-sectional regression) and §1.3 (full diagnostics) with journal tables, delivered
 with the full 10-element model standard. Next: v1.5 — simultaneous equations & IV, limited dependent variables, count & survival.
 
+### ✅ Phase 4b — IV & systems, limited dependent variables, count & survival (v1.5)
+Catalogue §1.2, §1.4 and §1.5 with the full model standard and cross-validation against R. Next: v1.6 — univariate time series & unit roots.
+
 ### Phase 4 — Econometrics Lab (flagship, continuing)
 - **Cross-section:** OLS with full diagnostics (Breusch-Pagan/White, VIF, RESET, Jarque-Bera), robust & clustered SEs, Logit/Probit with marginal effects, quantile regression, IV/2SLS.
 - **Time series:** ADF/PP/KPSS/Zivot-Andrews unit roots, **ARDL bounds testing** (Pesaran) with ECM, Johansen cointegration, VAR/VECM, Granger causality, impulse responses, ARIMA/SARIMA forecasting, structural breaks.

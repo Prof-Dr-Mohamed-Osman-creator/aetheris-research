@@ -90,7 +90,12 @@ def render_econometrics():
               tr("🔎 Model selection & form", "🔎 اختيار النموذج والصورة الدالية"),
               tr("🔀 Moderation & mediation", "🔀 التأثير المعدِّل والوسيط"),
               tr("🧮 Hypothesis tests & RLS", "🧮 اختبار الفروض والمربعات المقيدة"),
-              tr("〰️ Nonlinear LS", "〰️ المربعات الصغرى غير الخطية")]
+              tr("〰️ Nonlinear LS", "〰️ المربعات الصغرى غير الخطية"),
+              tr("🔗 IV & simultaneous equations", "🔗 المتغيرات الأداتية والمعادلات الآنية"),
+              tr("🎯 Qualitative response", "🎯 الاستجابة النوعية"),
+              tr("✂️ Censored & selection", "✂️ المراقَبة والاختيار"),
+              tr("🔢 Count data", "🔢 بيانات العدّ"),
+              tr("⏳ Survival & duration", "⏳ البقاء والمدة")]
     tabs = st.tabs(labels)
     with tabs[0]:
         _builder_tab(df)
@@ -104,10 +109,34 @@ def render_econometrics():
         _tests_tab(df)
     with tabs[5]:
         _nls_tab(df)
+    from analytics import econ_models_ui as emu
+    with tabs[6]:
+        emu.render_iv(df)
+    with tabs[7]:
+        emu.render_choice(df)
+    with tabs[8]:
+        emu.render_censored(df)
+    with tabs[9]:
+        emu.render_count(df)
+    with tabs[10]:
+        emu.render_survival(df)
 
 
 def _demo_buttons():
-    from data.samples import climate_crop_demo, farm_survey_demo
+    from data.samples import climate_crop_demo, farm_survey_demo, household_survey_demo, labour_iv_demo, market_sem_demo
+    c3, c4, c5 = st.columns(3)
+    with c3:
+        if st.button(tr("🏡 Household survey (choice, count, survival)", "🏡 مسح الأسر (الاختيار، العدّ، البقاء)"), key="eco_demo_hh"):
+            set_memory(household_survey_demo(), source="demo (synthetic)", name="Demo – household survey (synthetic)")
+            st.rerun()
+    with c4:
+        if st.button(tr("🎓 Wages & schooling (IV)", "🎓 الأجور والتعليم (IV)"), key="eco_demo_iv"):
+            set_memory(labour_iv_demo(), source="demo (synthetic)", name="Demo – wages & schooling IV (synthetic)")
+            st.rerun()
+    with c5:
+        if st.button(tr("⚖️ Crop market (demand & supply)", "⚖️ سوق محصول (الطلب والعرض)"), key="eco_demo_sem"):
+            set_memory(market_sem_demo(), source="demo (synthetic)", name="Demo – crop market SEM (synthetic)")
+            st.rerun()
     c1, c2 = st.columns(2)
     with c1:
         if st.button(tr("🌾 Farm survey (cross-section, 320 farms)", "🌾 مسح المزارع (بيانات مقطعية، 320 مزرعة)"),
@@ -380,7 +409,7 @@ def _estimates(df, r, diag, alpha, key):
     m = st.columns(6)
     for col, (lab, v) in zip(m, [("R²", fs["R²"]), (tr("Adj. R²", "R² المعدل"), fs["Adj. R²"]),
                                  ("F", fs["F"]), ("Prob(F)", fs["Prob(F)"]), ("AIC", fs["AIC"]), ("BIC", fs["BIC"])]):
-        col.metric(lab, "—" if v is None or not np.isfinite(v) else (f"{v:.4f}" if abs(v) < 100 else f"{v:,.1f}"))
+        col.metric(lab, "—" if v is None or not np.isfinite(v) else "\u200e" + (f"{v:.4f}" if abs(v) < 100 else f"{v:,.1f}"))
     with st.expander(tr("All fit statistics", "جميع إحصاءات جودة التوفيق"), expanded=False):
         st.dataframe(pd.DataFrame({"": list(fs), tr("Value", "القيمة"): [
             "—" if v is None or (isinstance(v, float) and not np.isfinite(v)) else v for v in fs.values()]}).astype(str),
@@ -698,7 +727,9 @@ def _journal_tab():
                                 key="eco_jt_cap")
     levels = (0.01, 0.05, 0.10) if lv.startswith("0.01") else (0.001, 0.01, 0.05)
     res = [models[n]["r"] for n in sel]
-    jt, note = rp.journal_table(res, sel, inner=inner, decimals=int(dec), star_levels=levels, lang=_lang())
+    mle = any(np.isfinite(m.extra.get("stats", {}).get("Pseudo R²", np.nan)) or m.extra.get("family") for m in res)
+    srows = ("N", "R²", "Adj. R²", "Pseudo R²", "Log-likelihood", "AIC", "BIC") if mle else ("N", "R²", "Adj. R²", "F", "AIC", "BIC")
+    jt, note = rp.journal_table(res, sel, inner=inner, decimals=int(dec), star_levels=levels, lang=_lang(), stats_rows=srows)
     st.markdown(rp.to_html(jt, note, caption), unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -723,8 +754,11 @@ def _journal_tab():
         if st.checkbox(tr("Show", "عرض"), key="eco_jt_show"):
             m = models[pick]
             df = get_memory()
-            if m["dataset"] == active_name():
+            if m["dataset"] == active_name() and m["r"].design is not None and not m["r"].extra.get("family") \
+                    and "Z" not in m["r"].extra:
                 show_model(df, m["r"], m["diag"], 0.05, key="saved")
+            elif m["dataset"] == active_name():
+                st.info(tr("Re-estimate this model in its tab to see its full output.", "أعد تقدير هذا النموذج في تبويبه لعرض مخرجاته كاملة."))
             else:
                 st.info(tr(f"This model was estimated on '{m['dataset']}'. Activate that dataset to open its full output.",
                            f"قُدِّر هذا النموذج على «{m['dataset']}». فعِّل تلك البيانات لعرض مخرجاته الكاملة."))

@@ -76,8 +76,6 @@ def _result(name, method, design, names, theta, cov, llf, n, y, fitted, kx, pred
         dfm = kx - 1 if design is not None and "const" in design.X.columns else kx
         st.update({"Pseudo R²": 1 - llf / llnull, "LR χ²": lr, "Prob > χ²": float(stats.chi2.sf(lr, max(dfm, 1))),
                    "LL (null)": float(llnull)})
-        r.rsquared = st["Pseudo R²"]
-        r.fvalue, r.f_pvalue = lr, st["Prob > χ²"]
     r.extra.update({"stats": st, "kx": kx, "pred": pred, "outputs": outputs, **(extra or {})})
     return r
 
@@ -340,7 +338,6 @@ def fit_ordered(df: pd.DataFrame, spec: rg.ModelSpec, distr: str = "logit", orde
                        "k_beta": k})
     r.extra["stats"]["LR χ²"] = 2 * (res.llf - ll0)
     r.extra["stats"]["Prob > χ²"] = float(stats.chi2.sf(2 * (res.llf - ll0), k))
-    r.fvalue, r.f_pvalue = r.extra["stats"]["LR χ²"], r.extra["stats"]["Prob > χ²"]
     pc = probs.argmax(axis=1)
     r.extra["accuracy"] = float(np.mean(pc == codes))
     if distr == "logit":
