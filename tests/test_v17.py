@@ -194,6 +194,29 @@ def test_dcc_ccc_bekk():
     b = gm.fit_bekk(RET[:700, :2], ["eq", "bank"], "scalar")
     assert 0 < b.params["a"] ** 2 + b.params["b"] ** 2 < 1
     assert gm.hedge_ratio(d, 1, 0).shape == (len(RET),)
+    sc = np.array([d.se["a (corrected)"], d.se["b (corrected)"]])
+    assert np.all(np.isfinite(sc)) and np.all(sc > 0) and np.allclose(sc, [d.se["a"], d.se["b"]], rtol=0.5)
+
+
+def test_bekk_full_recovers_parameters():
+    """Simulated full BEKK(1,1): the ML estimate attains a likelihood at least as high as the true parameters and every
+    parameter lies within 3.5 standard errors of its true value."""
+    rng = np.random.default_rng(21)
+    T, K = 2000, 2
+    C = np.array([[0.2, 0.0], [0.1, 0.25]])
+    A = np.array([[0.30, 0.05], [0.00, 0.25]])
+    B = np.array([[0.93, -0.02], [0.01, 0.94]])
+    H, e, E = np.eye(K), np.zeros(K), np.empty((T, K))
+    for t in range(T):
+        H = C @ C.T + A.T @ np.outer(e, e) @ A + B.T @ H @ B
+        e = np.linalg.cholesky(H) @ rng.standard_normal(K)
+        E[t] = e
+    m = gm.fit_bekk(E, ["x", "y"], "full")
+    Ed = E - E.mean(0)
+    true = np.r_[C[np.tril_indices(2)], A.ravel(), B.ravel()]
+    assert m.llf >= gm.bekk_loglik(true, Ed, "full", Ed.T @ Ed / T)[1].sum()
+    est, se = np.array(list(m.params.values())), np.array(list(m.se.values()))
+    assert np.all(np.abs(est[3:] - true[3:]) < 3.5 * se[3:])
 
 
 # ---------------- reporting ----------------

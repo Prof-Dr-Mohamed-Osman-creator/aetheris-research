@@ -16,7 +16,7 @@ from analytics import var as vr
 from data.samples import financial_returns_demo, macro_var_demo, price_transmission_demo
 
 warnings.filterwarnings("ignore")
-PKGS = ["vars", "urca", "cointReg", "ARDL", "quantreg", "fGarch"]
+PKGS = ["vars", "urca", "cointReg", "ARDL", "quantreg", "fGarch", "MTS"]
 R_OK = bool(shutil.which("Rscript")) and subprocess.run(
     ["Rscript", "-e", f"for (p in c({', '.join(repr(p) for p in PKGS)})) library(p, character.only = TRUE)"],
     capture_output=True).returncode == 0
@@ -212,3 +212,24 @@ def test_exported_r_code_runs(kind, tmp_path):
     (tmp_path / "m.R").write_text("pdf(NULL)\n" + code)
     p = subprocess.run(["Rscript", "m.R"], cwd=tmp_path, capture_output=True, text=True)
     assert p.returncode == 0, p.stderr[-1500:]
+
+
+def test_bekk_likelihood_matches_mts(tmp_path):
+    """Our BEKK likelihood, evaluated at R MTS::BEKK11's estimates with MTS's conventions (H₁ = cov with divisor T − 1,
+    likelihood from t = 2), reproduces MTS's log-likelihood; re-optimising from there can only increase it."""
+    from scipy import optimize
+    Yr = np.column_stack([gm.returns(financial_returns_demo()[c].values) for c in ("equity_index", "bank_stock_egp")])
+    E = Yr - Yr.mean(0)
+    pd.DataFrame(E).to_csv(tmp_path / "e.csv", index=False)
+    p = subprocess.run(["Rscript", "-e", 'suppressMessages(library(MTS)); E <- as.matrix(read.csv("e.csv")); '
+                        'invisible(capture.output(f <- BEKK11(E, include.mean = FALSE))); '
+                        'cat(f$estimates, "\\n"); cat(-sum(0), "\\n")'], cwd=tmp_path, capture_output=True, text=True)
+    est = np.array([float(x) for x in p.stdout.split()[:11]])
+    A1, B1 = est[3:7].reshape(2, 2, order="F"), est[7:11].reshape(2, 2, order="F")
+    th = np.r_[est[:3], A1.T.ravel(), B1.T.ravel()]
+    H0 = np.cov(E.T)
+    ll_mts = gm.bekk_loglik(th, E, "full", H0)[1][1:].sum()
+    assert ll_mts == pytest.approx(-4677.874, abs=1e-3)       # value printed by MTS::BEKK11
+    nll = lambda t: -gm.bekk_loglik(t, E, "full", H0)[1][1:].sum()  # noqa: E731
+    r = optimize.minimize(nll, th, method="Nelder-Mead", options={"maxiter": 6000})
+    assert -r.fun > ll_mts + 1

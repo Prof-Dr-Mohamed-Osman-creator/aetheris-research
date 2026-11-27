@@ -525,7 +525,7 @@ def _dcc_filter(ab, Z, Qbar):
     return float(ll), R
 
 
-def fit_dcc(Y, names, model="garch", dist="norm", p=1, q=1, index=None) -> MgarchResult:
+def fit_dcc(Y, names, model="garch", dist="norm", p=1, q=1, index=None, corrected: bool = True) -> MgarchResult:
     """Engle (2002) two-step DCC(1,1): univariate GARCH margins, then the correlation likelihood in (a, b) with
     Q̄ = sample covariance of the standardised residuals (correlation targeting)."""
     from statsmodels.tools.numdiff import approx_hess
@@ -554,51 +554,137 @@ def fit_dcc(Y, names, model="garch", dist="norm", p=1, q=1, index=None) -> Mgarc
     ll = sum(u.llf for u in uni) + llc
     res = MgarchResult("DCC", names, uni, {"a": ab[0], "b": ab[1], "Qbar": Qbar}, {"a": se[0], "b": se[1]}, float(ll), H, R, index,
                        {"Log-likelihood": ll, "N": T, "LL correlation part": llc, "a + b": ab.sum()})
-    res.notes.append("Two-step standard errors of a and b treat the univariate stage as known (Engle 2002); they are "
-                     "slightly too small.")
+    if corrected:
+        try:
+            sc = dcc_corrected_se(res, ab)
+            res.se.update({"a (corrected)": sc[0], "b (corrected)": sc[1]})
+            res.notes.append("Corrected standard errors account for the estimation of the univariate stage (two-step "
+                             "M-estimator sandwich, Newey & McFadden 1994, Thm 6.1; Engle & Sheppard 2001).")
+        except Exception:  # noqa: BLE001
+            res.notes.append("The corrected two-step standard errors could not be computed.")
+    res.notes.append("Uncorrected standard errors of a and b treat the univariate stage as known (Engle 2002); report "
+                     "the corrected ones in publications.")
     return res
+
+
+def _dcc_ll_vec(ab, Z, Qbar):
+    """Per-observation DCC correlation log-likelihood."""
+    a, b = ab
+    T, K = Z.shape
+    OP = np.einsum("ti,tj->tij", Z, Z)
+    Q = np.empty((T, K, K))
+    Q[0] = Qbar
+    c = (1 - a - b) * Qbar
+    for t in range(1, T):
+        Q[t] = c + a * OP[t - 1] + b * Q[t - 1]
+    d = 1 / np.sqrt(np.einsum("tii->ti", Q))
+    R = Q * np.einsum("ti,tj->tij", d, d)
+    _, ld = np.linalg.slogdet(R)
+    quad = np.einsum("ti,ti->t", Z, np.linalg.solve(R, Z[:, :, None])[:, :, 0])
+    return -0.5 * (ld + quad - (Z ** 2).sum(1))
+
+
+def dcc_corrected_se(m: "MgarchResult", ab) -> np.ndarray:
+    """Two-step sandwich covariance of (a, b) that propagates the uncertainty of the univariate GARCH parameters θ₁:
+    V = A⁻¹ B A⁻ᵀ with A = [[H₁₁, 0], [H₂₁, H₂₂]] (Hessians of the summed log-likelihoods) and B = Σ_t s_t s_t'
+    (stacked per-observation scores)."""
+    from statsmodels.tools.numdiff import approx_fprime, approx_hess
+    uni = m.uni
+    sizes = [len(u.params) for u in uni]
+    th1 = np.concatenate([u.params for u in uni])
+    ab = np.asarray(ab, float)
+
+    def z_of(th):
+        cols, i0 = [], 0
+        for u, k in zip(uni, sizes):
+            e, h, _ = _filter(th[i0:i0 + k], u.y, u.model, u.p, u.q, u.mean, u.dist, u.names)
+            cols.append(e / np.sqrt(h))
+            i0 += k
+        return np.column_stack(cols)
+
+    def l2_vec(th, ab_):
+        Z = z_of(th)
+        return _dcc_ll_vec(ab_, Z, Z.T @ Z / len(Z))
+
+    # stage-1 scores and Hessian (block diagonal)
+    s1, H11 = [], np.zeros((len(th1), len(th1)))
+    i0 = 0
+    for u, k in zip(uni, sizes):
+        f = lambda t, u=u: _filter(t, u.y, u.model, u.p, u.q, u.mean, u.dist, u.names)[2]  # noqa: E731
+        s1.append(approx_fprime(u.params, f, centered=True))
+        H11[i0:i0 + k, i0:i0 + k] = approx_hess(u.params, lambda t, f=f: f(t).sum())
+        i0 += k
+    s1 = np.column_stack(s1)
+    s2 = approx_fprime(ab, lambda x: l2_vec(th1, x), centered=True)
+    H22 = approx_hess(ab, lambda x: l2_vec(th1, x).sum())
+    g2 = lambda t: approx_fprime(ab, lambda x: l2_vec(t, x).sum(), centered=True)  # noqa: E731
+    H21 = approx_fprime(th1, g2, centered=True)
+    n1 = len(th1)
+    A = np.zeros((n1 + 2, n1 + 2))
+    A[:n1, :n1] = H11
+    A[n1:, :n1] = H21
+    A[n1:, n1:] = H22
+    Sc = np.column_stack([s1, s2])
+    Bm = Sc.T @ Sc
+    Ai = np.linalg.inv(A)
+    V = Ai @ Bm @ Ai.T
+    return np.sqrt(np.abs(np.diag(V)[n1:]))
+
+
+def bekk_build(th, K: int, kind: str):
+    """Parameter vector → (C lower-triangular, A, B) for H_t = CC' + A'εε'A + B'HB."""
+    il = np.tril_indices(K)
+    nC = len(il[0])
+    nA = {"scalar": 1, "diagonal": K, "full": K * K}[kind]
+    th = np.asarray(th, float)
+    C = np.zeros((K, K))
+    C[il] = th[:nC]
+    a, b = th[nC:nC + nA], th[nC + nA:nC + 2 * nA]
+    if kind == "scalar":
+        A, B = a[0] * np.eye(K), b[0] * np.eye(K)
+    elif kind == "diagonal":
+        A, B = np.diag(a), np.diag(b)
+    else:
+        A, B = a.reshape(K, K), b.reshape(K, K)
+    return C, A, B
+
+
+def bekk_loglik(th, E: np.ndarray, kind: str, H0: np.ndarray):
+    """Conditional covariances and per-observation Gaussian log-likelihood of a BEKK(1,1); H_1 = H0."""
+    T, K = E.shape
+    C, A, B = bekk_build(th, K, kind)
+    CC = C @ C.T
+    AE = E @ A
+    OP = np.einsum("ti,tj->tij", AE, AE)
+    H = np.empty((T, K, K))
+    H[0] = H0
+    Bt = B.T
+    for t in range(1, T):
+        H[t] = CC + OP[t - 1] + Bt @ H[t - 1] @ B
+    H = (H + np.transpose(H, (0, 2, 1))) / 2
+    sg, ld = np.linalg.slogdet(H)
+    if np.any(sg <= 0) or not np.all(np.isfinite(ld)):
+        return None, np.full(T, -np.inf)
+    quad = np.einsum("ti,ti->t", E, np.linalg.solve(H, E[:, :, None])[:, :, 0])
+    return H, -0.5 * (K * np.log(2 * np.pi) + ld + quad)
 
 
 def fit_bekk(Y, names, kind: str = "diagonal", index=None) -> MgarchResult:
     """BEKK(1,1): H_t = CC' + A'ε_{t−1}ε'_{t−1}A + B'H_{t−1}B with C lower-triangular; kind = 'scalar', 'diagonal' or
-    'full'. Gaussian ML on demeaned returns, H₀ = sample covariance."""
+    'full'. Gaussian ML on demeaned returns, H₁ = sample covariance (divisor T)."""
     from statsmodels.tools.numdiff import approx_hess
     Y = np.asarray(Y, float)
     E = Y - Y.mean(0)
     T, K = E.shape
     S0 = E.T @ E / T
     il = np.tril_indices(K)
-    nC = len(il[0])
     nA = {"scalar": 1, "diagonal": K, "full": K * K}[kind]
 
     def build(th):
-        C = np.zeros((K, K))
-        C[il] = th[:nC]
-        a, b = th[nC:nC + nA], th[nC + nA:nC + 2 * nA]
-        if kind == "scalar":
-            A, B = a[0] * np.eye(K), b[0] * np.eye(K)
-        elif kind == "diagonal":
-            A, B = np.diag(a), np.diag(b)
-        else:
-            A, B = a.reshape(K, K), b.reshape(K, K)
-        return C, A, B
+        return bekk_build(th, K, kind)
 
     def filt(th):
-        C, A, B = build(th)
-        CC = C @ C.T
-        AE = E @ A
-        OP = np.einsum("ti,tj->tij", AE, AE)
-        H = np.empty((T, K, K))
-        H[0] = S0
-        Bt = B.T
-        for t in range(1, T):
-            H[t] = CC + OP[t - 1] + Bt @ H[t - 1] @ B
-        sg, ld = np.linalg.slogdet(H)
-        if np.any(sg <= 0) or not np.all(np.isfinite(ld)):
-            return None, -np.inf * np.ones(T)
-        quad = np.einsum("ti,ti->t", E, np.linalg.solve(H, E[:, :, None])[:, :, 0])
-        ll = -0.5 * (K * np.log(2 * np.pi) + ld + quad)
-        return H, ll
+        return bekk_loglik(th, E, kind, S0)
 
     def nll(th):
         _, ll = filt(th)

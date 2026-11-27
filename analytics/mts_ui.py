@@ -38,6 +38,7 @@ tu._AR_COLS.update({
     "Significance": "مستوى المعنوية", "τ": "τ", "Long-run β(τ)": "معامل الأجل الطويل β(τ)", "θ⁺ / Σω⁺": "θ⁺ / Σω⁺",
     "θ⁻ / Σω⁻": "θ⁻ / Σω⁻", "Wald F": "والد F", "R²": "R²", "Adj. R²": "R² المعدل", "S.E. of regression": "الخطأ المعياري للانحدار",
     "F": "F", "p(F)": "p(F)", "Modulus": "المقياس", "Model": "النموذج", "AIC": "AIC", "BIC": "BIC", "z": "z",
+    "Std. Err. (two-step, uncorrected)": "الخطأ المعياري (مرحلتان، غير مصحح)", "Std. Err. (corrected)": "الخطأ المعياري (مصحح)",
     "variance": "التباين", "volatility": "التقلب", "unconditional": "التباين غير الشرطي", "Estimate": "التقدير"})
 tu._AR_VALS.update({"no residual autocorrelation": "لا ارتباط ذاتي في البواقي", "normal residuals": "بواقٍ طبيعية",
                     "no ARCH effects": "لا آثار ARCH", "no autocorrelation in the mean": "لا ارتباط ذاتي في المتوسط",
@@ -1048,8 +1049,14 @@ def _multi_garch(Y, lang):
     st.subheader(m.model + " — " + ", ".join(m.names))
     st.metric("Log-likelihood", f"{m.llf:,.2f}")
     if m.model == "DCC":
-        st.dataframe(_disp(pd.DataFrame([{"Parameter": k_, "Coef.": m.params[k_], "Std. Err.": m.se[k_], "z": m.params[k_] / m.se[k_]} for k_ in ("a", "b")])).round(4),
-                     width="stretch", hide_index=True)
+        rows = []
+        for k_ in ("a", "b"):
+            sc = m.se.get(f"{k_} (corrected)", np.nan)
+            rows.append({"Parameter": k_, "Coef.": m.params[k_], "Std. Err. (two-step, uncorrected)": m.se[k_],
+                         "Std. Err. (corrected)": sc, "z": m.params[k_] / (sc if np.isfinite(sc) else m.se[k_])})
+        st.dataframe(_disp(pd.DataFrame(rows)).round(4), width="stretch", hide_index=True)
+        for n_ in m.notes:
+            st.caption(n_)
         insight(tr(f"a + b = {m.params['a'] + m.params['b']:.3f}: correlations are " + ("highly persistent." if m.params['a'] + m.params['b'] > 0.95 else "moderately persistent.") +
                    f" a = {m.params['a']:.3f} measures how strongly correlations react to new joint shocks.",
                    f"a + b = {m.params['a'] + m.params['b']:.3f}: الارتباطات " + ("شديدة الاستمرار." if m.params['a'] + m.params['b'] > 0.95 else "متوسطة الاستمرار.") +

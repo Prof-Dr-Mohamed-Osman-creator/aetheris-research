@@ -49,6 +49,7 @@ REFS = {
     "dcc": "Engle, R. F. (2002). Dynamic conditional correlation: A simple class of multivariate generalized autoregressive conditional heteroskedasticity models. Journal of Business & Economic Statistics, 20(3), 339–350.",
     "bekk": "Engle, R. F., & Kroner, K. F. (1995). Multivariate simultaneous generalized ARCH. Econometric Theory, 11(1), 122–150.",
     "es01": "Engle, R. F., & Sheppard, K. (2001). Theoretical and empirical properties of dynamic conditional correlation multivariate GARCH (NBER Working Paper No. 8554).",
+    "nm94": "Newey, W. K., & McFadden, D. (1994). Large sample estimation and hypothesis testing. In R. F. Engle & D. L. McFadden (Eds.), Handbook of econometrics (Vol. 4, pp. 2111–2245). Elsevier.",
     "ks93": "Kroner, K. F., & Sultan, J. (1993). Time-varying distributions and dynamic hedging with foreign currency futures. Journal of Financial and Quantitative Analysis, 28(4), 535–551.",
 }
 
@@ -150,13 +151,15 @@ def methodology(kind: str, lang: str = "en", **kw) -> tuple:
         refs = [R[k] for k in ("engle82", "bollerslev86", "elr", "gjr", "nelson", "bw", "engle_ng", "fs", "kupiec", "christoffersen")]
     else:   # mgarch
         txt = ("قُدِّرت التقلبات والارتباطات الشرطية المشتركة بنماذج GARCH متعددة المتغيرات: الارتباط الشرطي الثابت (CCC) "
-               "والديناميكي (DCC) لإنجل على مرحلتين، ونموذج BEKK الذي يلتقط انتقال الصدمات والتقلبات بين الأسواق، واختُبر "
+               "والديناميكي (DCC) لإنجل على مرحلتين مع تصحيح الأخطاء المعيارية لأثر تقدير المرحلة الأولى (نيوي-ماكفادن 1994)، "
+               "ونموذج BEKK الذي يلتقط انتقال الصدمات والتقلبات بين الأسواق، واختُبر "
                "ثبات الارتباط باختبار إنجل-شيبارد، وحُسبت نسبة التحوط الديناميكية.") if ar else (
                "Joint conditional volatilities and correlations are modelled with multivariate GARCH: Bollerslev's constant "
                "conditional correlation (CCC), Engle's two-step dynamic conditional correlation (DCC) and the BEKK model, which "
-               "captures shock and volatility spillovers between markets. Constant correlation is tested with the Engle-Sheppard "
+               "captures shock and volatility spillovers between markets. DCC standard errors are corrected for the first-stage "
+               "estimation (two-step sandwich, Newey and McFadden 1994). Constant correlation is tested with the Engle-Sheppard "
                "test and dynamic hedge ratios are computed.")
-        refs = [R[k] for k in ("ccc", "dcc", "bekk", "es01", "ks93")]
+        refs = [R[k] for k in ("ccc", "dcc", "bekk", "es01", "ks93", "nm94")]
     return txt, sorted(refs)
 
 
