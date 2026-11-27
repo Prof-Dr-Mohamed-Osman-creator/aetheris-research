@@ -59,6 +59,10 @@ REF = {
     "grambsch": "Grambsch, P. M., & Therneau, T. M. (1994). Proportional hazards tests and diagnostics based on weighted residuals. Biometrika, 81(3), 515–526.",
     "harrell": "Harrell, F. E., Califf, R. M., Pryor, D. B., Lee, K. L., & Rosati, R. A. (1982). Evaluating the yield of medical tests. JAMA, 247(18), 2543–2546.",
     "kalbfleisch": "Kalbfleisch, J. D., & Prentice, R. L. (2002). The statistical analysis of failure time data (2nd ed.). Wiley.",
+    "hausmanwise": "Hausman, J. A., & Wise, D. A. (1978). A conditional probit model for qualitative choice. Econometrica, 46(2), 403–426.",
+    "ghk": "Hajivassiliou, V., McFadden, D., & Ruud, P. (1996). Simulation of multivariate normal rectangle probabilities and their derivatives. Journal of Econometrics, 72(1–2), 85–134.",
+    "keane": "Keane, M. P. (1992). A note on identification in the multinomial probit model. Journal of Business & Economic Statistics, 10(2), 193–200.",
+    "train": "Train, K. E. (2009). Discrete choice methods with simulation (2nd ed.). Cambridge University Press.",
     "jenkins": "Jenkins, S. P. (1995). Easy estimation methods for discrete-time duration models. Oxford Bulletin of Economics and Statistics, 57(1), 129–138.",
     "allison": "Allison, P. D. (1982). Discrete-time methods for the analysis of event histories. Sociological Methodology, 13, 61–98.",
 }
@@ -71,7 +75,7 @@ REF_KEYS = {
     "ols": ["wooldridge", "hausman78", "wu"],
     "lpm": ["wooldridge", "white"], "logit": ["mcfadden", "wooldridge", "hosmer", "pregibon", "hanley"],
     "probit": ["wooldridge", "hosmer", "pregibon", "hanley"], "cloglog": ["wooldridge", "pregibon", "hanley"],
-    "mnlogit": ["mcfadden", "hausmcf", "wooldridge"], "ologit": ["mckelvey", "brant", "wooldridge"],
+    "mnlogit": ["mcfadden", "hausmcf", "wooldridge"], "mnprobit": ["hausmanwise", "ghk", "keane", "train"], "ologit": ["mckelvey", "brant", "wooldridge"],
     "oprobit": ["mckelvey", "wooldridge"], "tobit": ["tobin", "mcdonald", "wooldridge"],
     "truncreg": ["wooldridge", "greene"], "heckman2": ["heckman79", "greene"], "heckman_ml": ["heckman79", "greene"],
     "cragg": ["cragg71", "linschmidt", "wooldridge"], "dhurdle": ["jones", "cragg71"], "frac": ["papke", "wooldridge"],
@@ -159,7 +163,12 @@ def diagnostics(df: pd.DataFrame, r, lang: str = "en") -> pd.DataFrame:
                     "دالة الربط مناسبة" if lt["p"] >= 0.05 else "خطأ في دالة الربط أو لا خطية محذوفة")
     elif fam == "multinomial":
         add("Correctly classified", "نسبة التصنيف الصحيح", r.extra["accuracy"], "", None, "", "")
-        for _, row in ldv.iia_test(df, r).iterrows():
+        if "LR_iid" in r.extra:
+            LR, q, p = r.extra["LR_iid"]
+            add("LR test: independent vs correlated errors", "اختبار نسبة الإمكان: أخطاء مستقلة مقابل مترابطة", LR, q, p,
+                "correlated errors supported" if p < 0.05 else "independent errors not rejected",
+                "الأخطاء المترابطة مدعومة" if p < 0.05 else "لا تُرفض استقلالية الأخطاء")
+        for _, row in (ldv.iia_test(df, r).iterrows() if r.method == "mnlogit" else iter(())):
             add(f"Hausman-McFadden IIA (omit '{row['Omitted outcome']}')", f"هاوسمان-ماكفادن IIA (حذف «{row['Omitted outcome']}»)",
                 row["χ²"], row["df"], row["p-value"],
                 "IIA holds" + (" (negative χ²: evidence for IIA)" if row["χ²"] < 0 else "") if row["Verdict"] == "IIA holds" else "IIA REJECTED → nested / mixed logit",
@@ -320,6 +329,13 @@ def methodology(r, lang: str = "en") -> tuple[str, list]:
                    "The binary outcome {y} is modelled with a {m} model estimated by maximum likelihood on ({xs}). Average "
                    "marginal effects (AME) with delta-method standard errors are reported; fit is assessed with the area under "
                    "the ROC curve, the Hosmer-Lemeshow test and Pregibon's link test."),
+        "mnprobit": ("لأن {y} متغير نوعي غير مرتب متعدد الفئات قُدِّر نموذج البروبيت متعدد الحدود ({m}) لهاوسمان ووايز، الذي "
+                     "يفترض أخطاء طبيعية، ويسمح في صيغته المترابطة بتباين مشترك بين البدائل فيتجاوز قيد IIA؛ وقُدِّرت الصيغة "
+                     "المترابطة بالإمكان الأعظم المحاكى بمحاكي GHK وتسلسلات هالتون، وتُعرض الآثار الحدية على احتمال كل فئة.",
+                     "Because {y} is an unordered categorical outcome, a multinomial probit ({m}; Hausman & Wise 1978) is "
+                     "estimated. It assumes normal errors and, in its correlated form, allows correlation across alternatives, "
+                     "relaxing IIA; the correlated version is estimated by simulated maximum likelihood with the GHK simulator "
+                     "and Halton draws. Marginal effects on each category probability are reported."),
         "multinomial": ("لأن {y} متغير نوعي غير مرتب متعدد الفئات قُدِّر نموذج اللوجيت متعدد الحدود، وتُعرض نسب المخاطر النسبية "
                         "والآثار الحدية على احتمال كل فئة، ويُختبر افتراض استقلال البدائل غير ذات الصلة (IIA) باختبار هاوسمان-ماكفادن.",
                         "Because {y} is an unordered categorical outcome, a multinomial logit is estimated; relative-risk ratios "
@@ -356,7 +372,7 @@ def methodology(r, lang: str = "en") -> tuple[str, list]:
                             "A discrete-time hazard model ({m}) is estimated on person-period data with a flexible baseline hazard."),
     }
     fam = family(r)
-    tmpl = T.get(fam, T["binary"])[0 if ar else 1]
+    tmpl = T.get("mnprobit" if m == "mnprobit" else fam, T["binary"])[0 if ar else 1]
     lab = r.name
     kw = {"m": lab, "y": y, "xs": xs}
     if fam == "iv":

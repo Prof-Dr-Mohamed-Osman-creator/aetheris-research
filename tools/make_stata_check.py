@@ -64,6 +64,106 @@ def block(title, r, extra=""):
     return "\n".join(L + [extra])
 
 
+EST_CMDS = ("logit ", "probit ", "mlogit ", "mprobit ", "ologit ", "oprobit ", "tobit ", "poisson ", "nbreg ", "zip ",
+            "heckman ", "stcox ", "streg ", "ivregress ", "regress ")
+
+
+def v15_block(title, r, csv, checks, tol_b=1e-5, tol_se=1e-4):
+    """Estimation lines from the exported Stata code (up to the estimation command) + coefficient checks."""
+    from analytics import model_code as mc
+    code = mc.code_stata(r, csv).splitlines()
+    keep = []
+    for ln in code:
+        keep.append(ln)
+        if ln.startswith(EST_CMDS) and not ln.startswith(("stset",)):
+            break
+    L = [f"\n* {'=' * 70}\n* v1.5 — {title}\n* {'=' * 70}"] + keep
+    for label, expr, val, tol in checks:
+        L.append(f'chk "{title}: {label}" {expr} {float(val)!r} {tol if tol else tol_b}')
+    return "\n".join(L)
+
+
+def v15_blocks():
+    import pandas as pd  # noqa: F401
+    from analytics import count_surv as cs
+    from analytics import iv as ivm
+    from analytics import ldv
+    from data.samples import household_survey_demo, labour_iv_demo
+    H = household_survey_demo()
+    L_ = labour_iv_demo()
+    H.to_csv(OUT / "household_survey_demo.csv", index=False)
+    L_.to_csv(OUT / "labour_iv_demo.csv", index=False)
+    hcsv, lcsv = "household_survey_demo.csv", "labour_iv_demo.csv"
+    XB = ["education_years", "farm_size_feddan", "distance_market_km", "credit_access"]
+    out = []
+
+    def bse(r, names, eq=None, tb=1e-5, ts=1e-4):
+        ch = []
+        for nm, sname in names:
+            pre = f"[{eq}]" if eq else ""
+            ch.append((f"b[{nm}]", f"{pre}_b[{sname}]", r.params[nm], tb))
+            ch.append((f"se[{nm}]", f"{pre}_se[{sname}]", r.bse[nm], ts))
+        return ch
+    simple = [("const", "_cons")] + [(v, v) for v in XB]
+    for link in ("logit", "probit"):
+        r = ldv.fit_binary(H, rg.ModelSpec(y="adopt_technology", x=XB), link)
+        out.append(v15_block(link.capitalize(), r, hcsv, bse(r, simple)))
+    r = ldv.fit_mnlogit(H, rg.ModelSpec(y="technology_choice", x=XB), base="Traditional")
+    cats = sorted(r.extra["categories"])
+    ch = []
+    for cat in r.extra["categories"][1:]:
+        eq = f"#{cats.index(cat) + 1}"
+        ch += [(f"b[{cat}: {v}]", f"[{eq}]_b[{sv}]", r.params[f"{cat}: {v}"], 1e-5) for v, sv in simple]
+        ch += [(f"se[{cat}: {v}]", f"[{eq}]_se[{sv}]", r.bse[f"{cat}: {v}"], 1e-4) for v, sv in simple]
+    out.append(v15_block("Multinomial logit", r, hcsv, ch))
+    r = ldv.fit_mnprobit(H, rg.ModelSpec(y="technology_choice", x=XB), base="Traditional")
+    ch = []
+    for cat in r.extra["categories"][1:]:
+        eq = f"#{cats.index(cat) + 1}"
+        ch += [(f"b[{cat}: {v}]", f"[{eq}]_b[{sv}]", r.params[f"{cat}: {v}"], 1e-3) for v, sv in simple]
+    out.append(v15_block("Multinomial probit, independent errors (Stata quadrature vs Aetheris)", r, hcsv, ch))
+    for distr in ("logit", "probit"):
+        r = ldv.fit_ordered(H, rg.ModelSpec(y="satisfaction_1to5", x=XB), distr)
+        ch = bse(r, [(v, v) for v in XB])
+        ch += [(f"cut{j + 1}", f"_b[/cut{j + 1}]", r.params.iloc[len(XB) + j], 1e-5) for j in range(4)]
+        out.append(v15_block(f"Ordered {distr}", r, hcsv, ch))
+    r = ldv.fit_tobit(H, rg.ModelSpec(y="fertilizer_spend_egp", x=XB))
+    out.append(v15_block("Tobit (left-censored at 0)", r, hcsv, bse(r, simple, tb=1e-5, ts=1e-3)))
+    r = cs.fit_count(H, rg.ModelSpec(y="extension_visits", x=XB), "poisson")
+    out.append(v15_block("Poisson", r, hcsv, bse(r, simple)))
+    r = cs.fit_count(H, rg.ModelSpec(y="extension_visits", x=XB), "negbin")
+    out.append(v15_block("Negative binomial (NB2)", r, hcsv, bse(r, simple, ts=1e-3) + [("alpha", "e(alpha)", r.params["alpha"], 1e-4)]))
+    o = rg.ModelSpec(y="offfarm_wage_egp_day", x=["education_years", "age", "female_head"], form="loglin")
+    s_ = rg.ModelSpec(y="works_offfarm", x=["education_years", "age", "n_children", "farm_size_feddan", "female_head"])
+    for meth in ("twostep", "ml"):
+        r = ldv.fit_heckman(H, o, s_, meth)
+        ch = bse(r, [("const", "_cons")] + [(v, v) for v in o.x], eq="#1", ts=1e-4 if meth == "twostep" else 1e-3)
+        ch += [(f"select b[{v}]", f"[select]_b[{v if v != 'const' else '_cons'}]", r.params[f"select: {v}"], 1e-4)
+               for v in ["const"] + s_.x]
+        ch += [("rho", "e(rho)", r.extra["rho"], 1e-4), ("sigma", "e(sigma)", r.extra["sigma"], 1e-4)]
+        out.append(v15_block(f"Heckman {meth}", r, hcsv, ch))
+    r = cs.fit_cox(H, rg.ModelSpec(y="years_to_adoption", x=XB), "years_to_adoption", "adopted_by_end", "efron")
+    out.append(v15_block("Cox PH (Efron ties)", r, hcsv, bse(r, [(v, v) for v in XB], ts=1e-4)))
+    r = cs.fit_aft(H, rg.ModelSpec(y="years_to_adoption", x=XB), "years_to_adoption", "adopted_by_end", "weibull")
+    out.append(v15_block("Weibull AFT", r, hcsv, bse(r, simple, tb=1e-4, ts=1e-3) +
+                         [("ln p = −ln σ", "_b[/ln_p]", -r.params["ln σ (log scale)"], 1e-4)]))
+    spec = ivm.IVSpec(y="wage_egp_hour", exog=["experience_years", "female", "urban"], endog=["education_years"],
+                      instruments=["distance_college_km", "father_education", "mother_education"], form="loglin")
+    r = ivm.iv_fit(L_, spec, "2sls")
+    t = ivm.iv_tests(L_, r).set_index("Test")
+    ch = bse(r, [("const", "_cons"), ("experience_years", "experience_years"), ("female", "female"), ("urban", "urban"),
+                 ("education_years", "education_years")])
+    blk = v15_block("IV 2SLS (small)", r, lcsv, ch)
+    blk += "\n".join(["", "quietly estat endogenous",
+                       f'chk "Durbin chi2" r(durbin) {float(t.loc["Durbin χ²", "Statistic"])!r}',
+                       f'chk "Wu-Hausman F" r(wu) {float(t.loc["Wu-Hausman F", "Statistic"])!r}',
+                       "quietly estat overid",
+                       f'chk "Sargan chi2" r(sargan) {float(t.loc["Sargan χ² (homoskedastic)", "Statistic"])!r}',
+                       f'chk "Basmann chi2" r(basmann) {float(t.loc["Basmann χ²", "Statistic"])!r}'])
+    out.append(blk)
+    return out
+
+
 def main():
     farm = farm_survey_demo()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -73,9 +173,10 @@ def main():
              "version 15", "clear all", "set more off", "global fails = 0",
              "capture program drop chk",
              "program define chk",
-             "    args label stata aetheris",
+             "    args label stata aetheris tol",
+             '    if "`tol\'" == "" local tol = 1e-6',
              "    local d = reldif(`stata', `aetheris')",
-             '    if `d\' < 1e-6 display as result "PASS  `label\'  (reldif = " %9.2e `d\' ")"',
+             '    if `d\' < `tol\' display as result "PASS  `label\'  (reldif = " %9.2e `d\' ")"',
              '    else {',
              '        display as error "FAIL  `label\'  Stata = " %14.0g `stata\' "  Aetheris = " %14.0g `aetheris\'',
              "        global fails = $fails + 1",
@@ -113,6 +214,7 @@ def main():
     lin = rg.ModelSpec(y="revenue_k_egp", x=["land_feddan", "labour_days"], categorical=["region"],
                        reference={"region": "New Lands"})
     parts.append(block("Linear model, custom reference level", rg.fit(farm, lin)))
+    parts += v15_blocks()
     parts += ['\ndisplay _n "Total failures: $fails"',
               'if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."']
     (OUT / "stata_check.do").write_text("\n".join(parts) + "\n", encoding="utf-8")

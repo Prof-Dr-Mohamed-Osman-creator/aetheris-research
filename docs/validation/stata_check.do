@@ -6,9 +6,10 @@ set more off
 global fails = 0
 capture program drop chk
 program define chk
-    args label stata aetheris
+    args label stata aetheris tol
+    if "`tol'" == "" local tol = 1e-6
     local d = reldif(`stata', `aetheris')
-    if `d' < 1e-6 display as result "PASS  `label'  (reldif = " %9.2e `d' ")"
+    if `d' < `tol' display as result "PASS  `label'  (reldif = " %9.2e `d' ")"
     else {
         display as error "FAIL  `label'  Stata = " %14.0g `stata' "  Aetheris = " %14.0g `aetheris'
         global fails = $fails + 1
@@ -220,6 +221,283 @@ chk "Linear model, custom reference level: se[region[Middle Egypt]]" _se[2.regio
 chk "Linear model, custom reference level: b[region[Upper Egypt]]" _b[4.region_n] 102.2902616958454
 chk "Linear model, custom reference level: se[region[Upper Egypt]]" _se[4.region_n] 54.18176594971217
 
+
+* ======================================================================
+* v1.5 — Logit
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+logit adopt_technology education_years farm_size_feddan distance_market_km credit_access
+chk "Logit: b[const]" _b[_cons] -1.4121577238577012 1e-05
+chk "Logit: se[const]" _se[_cons] 0.18442130989653346 0.0001
+chk "Logit: b[education_years]" _b[education_years] 0.15444162585985688 1e-05
+chk "Logit: se[education_years]" _se[education_years] 0.0156020439533438 0.0001
+chk "Logit: b[farm_size_feddan]" _b[farm_size_feddan] 0.10707090089773341 1e-05
+chk "Logit: se[farm_size_feddan]" _se[farm_size_feddan] 0.02213715611109551 0.0001
+chk "Logit: b[distance_market_km]" _b[distance_market_km] -0.06708196862161865 1e-05
+chk "Logit: se[distance_market_km]" _se[distance_market_km] 0.008966584839011742 0.0001
+chk "Logit: b[credit_access]" _b[credit_access] 0.9658634769097513 1e-05
+chk "Logit: se[credit_access]" _se[credit_access] 0.11508072401767004 0.0001
+
+* ======================================================================
+* v1.5 — Probit
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+probit adopt_technology education_years farm_size_feddan distance_market_km credit_access
+chk "Probit: b[const]" _b[_cons] -0.8571641931254546 1e-05
+chk "Probit: se[const]" _se[_cons] 0.10915067912436995 0.0001
+chk "Probit: b[education_years]" _b[education_years] 0.09324717314510672 1e-05
+chk "Probit: se[education_years]" _se[education_years] 0.00918873866463977 0.0001
+chk "Probit: b[farm_size_feddan]" _b[farm_size_feddan] 0.06423805947016603 1e-05
+chk "Probit: se[farm_size_feddan]" _se[farm_size_feddan] 0.01307521689834019 0.0001
+chk "Probit: b[distance_market_km]" _b[distance_market_km] -0.04020395986980589 1e-05
+chk "Probit: se[distance_market_km]" _se[distance_market_km] 0.005253883757291526 0.0001
+chk "Probit: b[credit_access]" _b[credit_access] 0.5871748304207831 1e-05
+chk "Probit: se[credit_access]" _se[credit_access] 0.06935441050283252 0.0001
+
+* ======================================================================
+* v1.5 — Multinomial logit
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+encode technology_choice, gen(technology_choice_n)   // outcomes numbered alphabetically; base = Traditional
+mlogit technology_choice_n education_years farm_size_feddan distance_market_km credit_access, baseoutcome(3)
+chk "Multinomial logit: b[Drip irrigation: const]" [#1]_b[_cons] -1.441265162850531 1e-05
+chk "Multinomial logit: b[Drip irrigation: education_years]" [#1]_b[education_years] 0.0733631737660969 1e-05
+chk "Multinomial logit: b[Drip irrigation: farm_size_feddan]" [#1]_b[farm_size_feddan] 0.13580048071178433 1e-05
+chk "Multinomial logit: b[Drip irrigation: distance_market_km]" [#1]_b[distance_market_km] 0.006417802374668411 1e-05
+chk "Multinomial logit: b[Drip irrigation: credit_access]" [#1]_b[credit_access] 0.826294942204078 1e-05
+chk "Multinomial logit: se[Drip irrigation: const]" [#1]_se[_cons] 0.2212991089386822 0.0001
+chk "Multinomial logit: se[Drip irrigation: education_years]" [#1]_se[education_years] 0.01801787183037716 0.0001
+chk "Multinomial logit: se[Drip irrigation: farm_size_feddan]" [#1]_se[farm_size_feddan] 0.026489639226383355 0.0001
+chk "Multinomial logit: se[Drip irrigation: distance_market_km]" [#1]_se[distance_market_km] 0.009731389555236414 0.0001
+chk "Multinomial logit: se[Drip irrigation: credit_access]" [#1]_se[credit_access] 0.14038964148354807 0.0001
+chk "Multinomial logit: b[Improved seed: const]" [#2]_b[_cons] 0.09368621492011843 1e-05
+chk "Multinomial logit: b[Improved seed: education_years]" [#2]_b[education_years] 0.050597368476740026 1e-05
+chk "Multinomial logit: b[Improved seed: farm_size_feddan]" [#2]_b[farm_size_feddan] -0.010326686187274496 1e-05
+chk "Multinomial logit: b[Improved seed: distance_market_km]" [#2]_b[distance_market_km] -0.01919398370917469 1e-05
+chk "Multinomial logit: b[Improved seed: credit_access]" [#2]_b[credit_access] 0.35927326811652716 1e-05
+chk "Multinomial logit: se[Improved seed: const]" [#2]_se[_cons] 0.19729183656595284 0.0001
+chk "Multinomial logit: se[Improved seed: education_years]" [#2]_se[education_years] 0.016572435858179697 0.0001
+chk "Multinomial logit: se[Improved seed: farm_size_feddan]" [#2]_se[farm_size_feddan] 0.0277039884975248 0.0001
+chk "Multinomial logit: se[Improved seed: distance_market_km]" [#2]_se[distance_market_km] 0.009295316055965036 0.0001
+chk "Multinomial logit: se[Improved seed: credit_access]" [#2]_se[credit_access] 0.1298129665297808 0.0001
+
+* ======================================================================
+* v1.5 — Multinomial probit, independent errors (Stata quadrature vs Aetheris)
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+encode technology_choice, gen(technology_choice_n)   // outcomes numbered alphabetically; base = Traditional
+mprobit technology_choice_n education_years farm_size_feddan distance_market_km credit_access, baseoutcome(3)
+chk "Multinomial probit, independent errors (Stata quadrature vs Aetheris): b[Drip irrigation: const]" [#1]_b[_cons] -1.110831967387393 0.001
+chk "Multinomial probit, independent errors (Stata quadrature vs Aetheris): b[Drip irrigation: education_years]" [#1]_b[education_years] 0.05685189921959391 0.001
+chk "Multinomial probit, independent errors (Stata quadrature vs Aetheris): b[Drip irrigation: farm_size_feddan]" [#1]_b[farm_size_feddan] 0.1064748415317988 0.001
+chk "Multinomial probit, independent errors (Stata quadrature vs Aetheris): b[Drip irrigation: distance_market_km]" [#1]_b[distance_market_km] 0.004558477844072901 0.001
+chk "Multinomial probit, independent errors (Stata quadrature vs Aetheris): b[Drip irrigation: credit_access]" [#1]_b[credit_access] 0.6318429539505503 0.001
+chk "Multinomial probit, independent errors (Stata quadrature vs Aetheris): b[Improved seed: const]" [#2]_b[_cons] 0.1018255897044146 0.001
+chk "Multinomial probit, independent errors (Stata quadrature vs Aetheris): b[Improved seed: education_years]" [#2]_b[education_years] 0.03960289046582133 0.001
+chk "Multinomial probit, independent errors (Stata quadrature vs Aetheris): b[Improved seed: farm_size_feddan]" [#2]_b[farm_size_feddan] -0.011839356976369621 0.001
+chk "Multinomial probit, independent errors (Stata quadrature vs Aetheris): b[Improved seed: distance_market_km]" [#2]_b[distance_market_km] -0.015994928857183156 0.001
+chk "Multinomial probit, independent errors (Stata quadrature vs Aetheris): b[Improved seed: credit_access]" [#2]_b[credit_access] 0.2696654361363375 0.001
+
+* ======================================================================
+* v1.5 — Ordered logit
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+ologit satisfaction_1to5 education_years farm_size_feddan distance_market_km credit_access
+chk "Ordered logit: b[education_years]" _b[education_years] 0.09906590958808274 1e-05
+chk "Ordered logit: se[education_years]" _se[education_years] 0.012258051963433735 0.0001
+chk "Ordered logit: b[farm_size_feddan]" _b[farm_size_feddan] 0.047720145907473685 1e-05
+chk "Ordered logit: se[farm_size_feddan]" _se[farm_size_feddan] 0.017050589583410262 0.0001
+chk "Ordered logit: b[distance_market_km]" _b[distance_market_km] -0.026381257686084767 1e-05
+chk "Ordered logit: se[distance_market_km]" _se[distance_market_km] 0.006704826753781162 0.0001
+chk "Ordered logit: b[credit_access]" _b[credit_access] 0.05025736336713429 1e-05
+chk "Ordered logit: se[credit_access]" _se[credit_access] 0.09348629554671868 0.0001
+chk "Ordered logit: cut1" _b[/cut1] -0.4111339941952374 1e-05
+chk "Ordered logit: cut2" _b[/cut2] 0.6491992726513354 1e-05
+chk "Ordered logit: cut3" _b[/cut3] 1.5566562260573045 1e-05
+chk "Ordered logit: cut4" _b[/cut4] 2.6699340249598644 1e-05
+
+* ======================================================================
+* v1.5 — Ordered probit
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+oprobit satisfaction_1to5 education_years farm_size_feddan distance_market_km credit_access
+chk "Ordered probit: b[education_years]" _b[education_years] 0.0583006057643898 1e-05
+chk "Ordered probit: se[education_years]" _se[education_years] 0.007181134153168823 0.0001
+chk "Ordered probit: b[farm_size_feddan]" _b[farm_size_feddan] 0.030530276383014206 1e-05
+chk "Ordered probit: se[farm_size_feddan]" _se[farm_size_feddan] 0.010158346530122674 0.0001
+chk "Ordered probit: b[distance_market_km]" _b[distance_market_km] -0.015854549436178093 1e-05
+chk "Ordered probit: se[distance_market_km]" _se[distance_market_km] 0.004020126227667647 0.0001
+chk "Ordered probit: b[credit_access]" _b[credit_access] 0.0295208180775286 1e-05
+chk "Ordered probit: se[credit_access]" _se[credit_access] 0.05560625704880779 0.0001
+chk "Ordered probit: cut1" _b[/cut1] -0.25988858022060657 1e-05
+chk "Ordered probit: cut2" _b[/cut2] 0.39025404139441877 1e-05
+chk "Ordered probit: cut3" _b[/cut3] 0.9454195034532997 1e-05
+chk "Ordered probit: cut4" _b[/cut4] 1.575134363120947 1e-05
+
+* ======================================================================
+* v1.5 — Tobit (left-censored at 0)
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+tobit fertilizer_spend_egp education_years farm_size_feddan distance_market_km credit_access, ll(0.0)
+chk "Tobit (left-censored at 0): b[const]" _b[_cons] -184.9621064550125 1e-05
+chk "Tobit (left-censored at 0): se[const]" _se[_cons] 27.859583599712373 0.001
+chk "Tobit (left-censored at 0): b[education_years]" _b[education_years] 37.546537756567275 1e-05
+chk "Tobit (left-censored at 0): se[education_years]" _se[education_years] 2.2628732746809868 0.001
+chk "Tobit (left-censored at 0): b[farm_size_feddan]" _b[farm_size_feddan] 51.629231400467205 1e-05
+chk "Tobit (left-censored at 0): se[farm_size_feddan]" _se[farm_size_feddan] 3.1448933545796853 0.001
+chk "Tobit (left-censored at 0): b[distance_market_km]" _b[distance_market_km] -13.402475113375367 1e-05
+chk "Tobit (left-censored at 0): se[distance_market_km]" _se[distance_market_km] 1.29457654176516 0.001
+chk "Tobit (left-censored at 0): b[credit_access]" _b[credit_access] 291.8882347462984 1e-05
+chk "Tobit (left-censored at 0): se[credit_access]" _se[credit_access] 17.47646830547332 0.001
+
+* ======================================================================
+* v1.5 — Poisson
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+poisson extension_visits education_years farm_size_feddan distance_market_km credit_access
+chk "Poisson: b[const]" _b[_cons] -0.28588589912933066 1e-05
+chk "Poisson: se[const]" _se[_cons] 0.08225128244432582 0.0001
+chk "Poisson: b[education_years]" _b[education_years] 0.08615343372866446 1e-05
+chk "Poisson: se[education_years]" _se[education_years] 0.006406767227342784 0.0001
+chk "Poisson: b[farm_size_feddan]" _b[farm_size_feddan] 0.05491103012566051 1e-05
+chk "Poisson: se[farm_size_feddan]" _se[farm_size_feddan] 0.007662580077199841 0.0001
+chk "Poisson: b[distance_market_km]" _b[distance_market_km] -0.06361870830584257 1e-05
+chk "Poisson: se[distance_market_km]" _se[distance_market_km] 0.004522985912024292 0.0001
+chk "Poisson: b[credit_access]" _b[credit_access] 0.2938237954363413 1e-05
+chk "Poisson: se[credit_access]" _se[credit_access] 0.0510187376510339 0.0001
+
+* ======================================================================
+* v1.5 — Negative binomial (NB2)
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+nbreg extension_visits education_years farm_size_feddan distance_market_km credit_access
+chk "Negative binomial (NB2): b[const]" _b[_cons] -0.2748649556432006 1e-05
+chk "Negative binomial (NB2): se[const]" _se[_cons] 0.17096884244068133 0.001
+chk "Negative binomial (NB2): b[education_years]" _b[education_years] 0.08414987019305743 1e-05
+chk "Negative binomial (NB2): se[education_years]" _se[education_years] 0.013415174789519535 0.001
+chk "Negative binomial (NB2): b[farm_size_feddan]" _b[farm_size_feddan] 0.0562345042212266 1e-05
+chk "Negative binomial (NB2): se[farm_size_feddan]" _se[farm_size_feddan] 0.020367816871131855 0.001
+chk "Negative binomial (NB2): b[distance_market_km]" _b[distance_market_km] -0.06520752917937522 1e-05
+chk "Negative binomial (NB2): se[distance_market_km]" _se[distance_market_km] 0.008614770863081914 0.001
+chk "Negative binomial (NB2): b[credit_access]" _b[credit_access] 0.3287870469854054 1e-05
+chk "Negative binomial (NB2): se[credit_access]" _se[credit_access] 0.10746234634472435 0.001
+chk "Negative binomial (NB2): alpha" e(alpha) 3.08888264693687 0.0001
+
+* ======================================================================
+* v1.5 — Heckman twostep
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+gen ln_offfarm_wage_egp_day = ln(offfarm_wage_egp_day)
+heckman ln_offfarm_wage_egp_day education_years age female_head, select(works_offfarm = education_years age n_children farm_size_feddan female_head) twostep
+chk "Heckman twostep: b[const]" [#1]_b[_cons] 2.041150478951222 1e-05
+chk "Heckman twostep: se[const]" [#1]_se[_cons] 0.07462259480442456 0.0001
+chk "Heckman twostep: b[education_years]" [#1]_b[education_years] 0.07082655518445395 1e-05
+chk "Heckman twostep: se[education_years]" [#1]_se[education_years] 0.003854508906691265 0.0001
+chk "Heckman twostep: b[age]" [#1]_b[age] 0.0051381755158317385 1e-05
+chk "Heckman twostep: se[age]" [#1]_se[age] 0.0015112293224693657 0.0001
+chk "Heckman twostep: b[female_head]" [#1]_b[female_head] -0.19779538301608127 1e-05
+chk "Heckman twostep: se[female_head]" [#1]_se[female_head] 0.039052841310425565 0.0001
+chk "Heckman twostep: select b[const]" [select]_b[_cons] 1.2858363512453683 0.0001
+chk "Heckman twostep: select b[education_years]" [select]_b[education_years] 0.03472044438531953 0.0001
+chk "Heckman twostep: select b[age]" [select]_b[age] -0.022292499716362008 0.0001
+chk "Heckman twostep: select b[n_children]" [select]_b[n_children] -0.27481020519603605 0.0001
+chk "Heckman twostep: select b[farm_size_feddan]" [select]_b[farm_size_feddan] -0.0379184311142349 0.0001
+chk "Heckman twostep: select b[female_head]" [select]_b[female_head] 0.13861131743297345 0.0001
+chk "Heckman twostep: rho" e(rho) 0.5159358197795451 0.0001
+chk "Heckman twostep: sigma" e(sigma) 0.34693622516527034 0.0001
+
+* ======================================================================
+* v1.5 — Heckman ml
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+gen ln_offfarm_wage_egp_day = ln(offfarm_wage_egp_day)
+heckman ln_offfarm_wage_egp_day education_years age female_head, select(works_offfarm = education_years age n_children farm_size_feddan female_head)
+chk "Heckman ml: b[const]" [#1]_b[_cons] 2.0506087536451476 1e-05
+chk "Heckman ml: se[const]" [#1]_se[_cons] 0.07364179526000077 0.001
+chk "Heckman ml: b[education_years]" [#1]_b[education_years] 0.0708312983921875 1e-05
+chk "Heckman ml: se[education_years]" [#1]_se[education_years] 0.0038497963968323556 0.001
+chk "Heckman ml: b[age]" [#1]_b[age] 0.005206439488421843 1e-05
+chk "Heckman ml: se[age]" [#1]_se[age] 0.0015060446956549065 0.001
+chk "Heckman ml: b[female_head]" [#1]_b[female_head] -0.1985574616630995 1e-05
+chk "Heckman ml: se[female_head]" [#1]_se[female_head] 0.03891282953681455 0.001
+chk "Heckman ml: select b[const]" [select]_b[_cons] 1.3040448735279175 0.0001
+chk "Heckman ml: select b[education_years]" [select]_b[education_years] 0.03303437571672632 0.0001
+chk "Heckman ml: select b[age]" [select]_b[age] -0.02173929499274536 0.0001
+chk "Heckman ml: select b[n_children]" [select]_b[n_children] -0.2756121459252842 0.0001
+chk "Heckman ml: select b[farm_size_feddan]" [select]_b[farm_size_feddan] -0.04678984232914834 0.0001
+chk "Heckman ml: select b[female_head]" [select]_b[female_head] 0.13255738561135166 0.0001
+chk "Heckman ml: rho" e(rho) 0.47925587760847144 0.0001
+chk "Heckman ml: sigma" e(sigma) 0.34361040442107466 0.0001
+
+* ======================================================================
+* v1.5 — Cox PH (Efron ties)
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+stset years_to_adoption, failure(adopted_by_end)
+stcox education_years farm_size_feddan distance_market_km credit_access, efron
+chk "Cox PH (Efron ties): b[education_years]" _b[education_years] 0.07273029317159245 1e-05
+chk "Cox PH (Efron ties): se[education_years]" _se[education_years] 0.007683122561769453 0.0001
+chk "Cox PH (Efron ties): b[farm_size_feddan]" _b[farm_size_feddan] 0.06865241670191367 1e-05
+chk "Cox PH (Efron ties): se[farm_size_feddan]" _se[farm_size_feddan] 0.009486338772906232 0.0001
+chk "Cox PH (Efron ties): b[distance_market_km]" _b[distance_market_km] -0.017427637634282733 1e-05
+chk "Cox PH (Efron ties): se[distance_market_km]" _se[distance_market_km] 0.00446092509457451 0.0001
+chk "Cox PH (Efron ties): b[credit_access]" _b[credit_access] 0.4551945810996572 1e-05
+chk "Cox PH (Efron ties): se[credit_access]" _se[credit_access] 0.05857487523959928 0.0001
+
+* ======================================================================
+* v1.5 — Weibull AFT
+* ======================================================================
+import delimited "household_survey_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+stset years_to_adoption, failure(adopted_by_end)
+streg education_years farm_size_feddan distance_market_km credit_access, distribution(weibull) time
+chk "Weibull AFT: b[const]" _b[_cons] 2.465427163516894 0.0001
+chk "Weibull AFT: se[const]" _se[_cons] 0.06883270200001937 0.001
+chk "Weibull AFT: b[education_years]" _b[education_years] -0.05429890921861594 0.0001
+chk "Weibull AFT: se[education_years]" _se[education_years] 0.00570107209188031 0.001
+chk "Weibull AFT: b[farm_size_feddan]" _b[farm_size_feddan] -0.05130240489261567 0.0001
+chk "Weibull AFT: se[farm_size_feddan]" _se[farm_size_feddan] 0.007074057599703257 0.001
+chk "Weibull AFT: b[distance_market_km]" _b[distance_market_km] 0.012989232958777172 0.0001
+chk "Weibull AFT: se[distance_market_km]" _se[distance_market_km] 0.003320501255786941 0.001
+chk "Weibull AFT: b[credit_access]" _b[credit_access] -0.33924273150120215 0.0001
+chk "Weibull AFT: se[credit_access]" _se[credit_access] 0.04357609234671231 0.001
+chk "Weibull AFT: ln p = −ln σ" _b[/ln_p] 0.2951054465047826 0.0001
+
+* ======================================================================
+* v1.5 — IV 2SLS (small)
+* ======================================================================
+import delimited "labour_iv_demo.csv", clear varnames(1) case(preserve)
+* Column names must be valid Stata names (letters, digits, _); rename them first if needed
+gen ln_wage_egp_hour = ln(wage_egp_hour)
+ivregress 2sls ln_wage_egp_hour experience_years female urban (education_years = distance_college_km father_education mother_education), small
+chk "IV 2SLS (small): b[const]" _b[_cons] 1.1598548142499012 1e-05
+chk "IV 2SLS (small): se[const]" _se[_cons] 0.10123259298315165 0.0001
+chk "IV 2SLS (small): b[experience_years]" _b[experience_years] 0.017216993968227116 1e-05
+chk "IV 2SLS (small): se[experience_years]" _se[experience_years] 0.0019451448294017116 0.0001
+chk "IV 2SLS (small): b[female]" _b[female] -0.19178733101338072 1e-05
+chk "IV 2SLS (small): se[female]" _se[female] 0.030443407105947815 0.0001
+chk "IV 2SLS (small): b[urban]" _b[urban] 0.0784295052724913 1e-05
+chk "IV 2SLS (small): se[urban]" _se[urban] 0.031893975716330514 0.0001
+chk "IV 2SLS (small): b[education_years]" _b[education_years] 0.07083558854955463 1e-05
+chk "IV 2SLS (small): se[education_years]" _se[education_years] 0.009622347463060114 0.0001
+quietly estat endogenous
+chk "Durbin chi2" r(durbin) 10.816940701574985
+chk "Wu-Hausman F" r(wu) 10.860756127235927
+quietly estat overid
+chk "Sargan chi2" r(sargan) 2.8004465625827546
+chk "Basmann chi2" r(basmann) 2.790623116729947
 
 display _n "Total failures: $fails"
 if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."

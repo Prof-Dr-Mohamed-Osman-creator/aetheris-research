@@ -521,9 +521,23 @@ def render_choice(df):
         y = st.selectbox(tr("Outcome", "المتغير التابع"), cats, key="mn_y")
         base = st.selectbox(tr("Base category", "فئة الأساس"), sorted(df[y].dropna().astype(str).unique()), key="mn_base")
         spec = _xvars(df, "mn", y)
+        mm = st.radio(tr("Model", "النموذج"), ["mnlogit", "mnp_iid", "mnp_corr"], horizontal=True, key="mn_model",
+                      format_func=lambda k: {"mnlogit": tr("Multinomial logit", "اللوجيت متعدد الحدود"),
+                                             "mnp_iid": tr("Multinomial probit — independent errors", "البروبيت متعدد الحدود — أخطاء مستقلة"),
+                                             "mnp_corr": tr("Multinomial probit — correlated errors (GHK)", "البروبيت متعدد الحدود — أخطاء مترابطة (GHK)")}[k])
+        draws = 200
+        if mm == "mnp_corr":
+            draws = st.select_slider(tr("Halton draws (GHK)", "عدد سحبات هالتون (GHK)"), [100, 200, 400, 800], 200, key="mn_draws")
+            st.caption(tr("Simulated ML can take 10–60 seconds. Correlated errors relax IIA but are weakly identified "
+                          "with only case-specific regressors.",
+                          "قد يستغرق التقدير بالمحاكاة من 10 إلى 60 ثانية. الأخطاء المترابطة تتجاوز قيد IIA لكنها ضعيفة "
+                          "التعرّف عند الاقتصار على متغيرات خاصة بالمشاهدة."))
         if (spec.x or spec.categorical) and st.button(tr("▶️ Estimate", "▶️ تقدير"), type="primary", key="mn_run"):
             try:
-                st.session_state["mn_res"] = (ldv.fit_mnlogit(df, spec, base), active_name())
+                with st.spinner(tr("Estimating…", "جارٍ التقدير…")):
+                    r_ = ldv.fit_mnlogit(df, spec, base) if mm == "mnlogit" else \
+                        ldv.fit_mnprobit(df, spec, base, correlated=(mm == "mnp_corr"), draws=draws)
+                st.session_state["mn_res"] = (r_, active_name())
             except Exception as e:  # noqa: BLE001
                 st.error(str(e))
         res = st.session_state.get("mn_res")
@@ -534,7 +548,10 @@ def render_choice(df):
                 v = st.selectbox(tr("Probabilities across", "الاحتمالات عبر"), r.design.spec.x, key="mn_cv")
                 if v:
                     _chart(mch.response_curve(df, r, v, r.extra["pred"], r.extra["outputs"], rtl=is_ar()), "mn_curve", "mnl_probabilities")
-            show_generic(df, r, "mnr", charts=charts, extra_tables=[(tr("Relative-risk ratios", "نسب المخاطر النسبية"), r.extra["rrr"])])
+            tables = [(tr("Relative-risk ratios", "نسب المخاطر النسبية"), r.extra["rrr"])] if "rrr" in r.extra else []
+            if "omega_corr" in r.extra:
+                tables.append((tr("Correlation of utility differences (Ω)", "ارتباط فروق المنفعة (Ω)"), r.extra["omega_corr"].reset_index()))
+            show_generic(df, r, "mnr", charts=charts, extra_tables=tables)
     else:
         cand = [c for c in df.columns if 3 <= df[c].nunique() <= 10]
         if not cand:

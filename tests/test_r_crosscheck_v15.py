@@ -174,3 +174,54 @@ def test_systems(meth, tmp_path):
     mine_se = np.concatenate([e.bse.values for e in s.equations])
     assert np.allclose(o.b, mine_b, rtol=1e-6, atol=1e-8)
     assert np.allclose(o.se, mine_se, rtol=1e-4 if meth != "itsur" else 1e-3)
+
+
+SEL_OK = R_OK and subprocess.run(["Rscript", "-e", "library(sampleSelection); library(truncreg); library(mhurdle)"],
+                                 capture_output=True).returncode == 0
+
+
+@pytest.mark.skipif(not SEL_OK, reason="sampleSelection / truncreg / mhurdle not installed")
+@pytest.mark.parametrize("meth", ["twostep", "ml"])
+def test_heckman_vs_sampleselection(meth, tmp_path):
+    out = rg.ModelSpec(y="offfarm_wage_egp_day", x=["education_years", "age", "female_head"], form="loglin")
+    sel = rg.ModelSpec(y="works_offfarm", x=["education_years", "age", "n_children", "farm_size_feddan", "female_head"])
+    r = ldv.fit_heckman(H, out, sel, meth)
+    o = run(mc.code_r(r, data(tmp_path, H)), tmp_path,
+            "B <- coef(m); SE <- sqrt(diag(vcov(m)))\n" + OUT)
+    kz, kx = 6, 4
+    b = r.params.values
+    if meth == "twostep":     # R: selection, outcome, λ, σ, ρ — Aetheris: outcome, λ, selection
+        mine = np.r_[b[kx + 1:], b[:kx + 1]]
+        mse = np.r_[r.bse.values[kx + 1:], r.bse.values[:kx + 1]]
+        n = kz + kx + 1
+        assert np.allclose(o.b.values[:n], mine, rtol=1e-5) and np.allclose(o.se.values[:n], mse, rtol=1e-4)
+        assert np.isclose(o.b.values[n], r.extra["sigma"], rtol=1e-6) and np.isclose(o.b.values[n + 1], r.extra["rho"], rtol=1e-6)
+    else:                     # R: selection, outcome, σ, ρ — Aetheris: outcome, selection, ρ, σ
+        mine = np.r_[b[kx:kx + kz], b[:kx], b[-1], b[-2]]
+        mse = np.r_[r.bse.values[kx:kx + kz], r.bse.values[:kx], r.bse.values[-1], r.bse.values[-2]]
+        assert np.allclose(o.b.values, mine, atol=2e-4) and np.allclose(o.se.values, mse, rtol=5e-3)
+
+
+@pytest.mark.skipif(not SEL_OK, reason="truncreg not installed")
+def test_truncreg_vs_r(tmp_path):
+    rng = np.random.default_rng(9)
+    x1, x2 = rng.normal(size=(2, 4000))
+    y = 1 + 0.8 * x1 - 0.5 * x2 + rng.normal(size=4000)
+    d = pd.DataFrame({"y": y, "x1": x1, "x2": x2})
+    d = d[d.y > 0].reset_index(drop=True)
+    r = ldv.fit_truncreg(d, rg.ModelSpec(y="y", x=["x1", "x2"]), lower=0.0)
+    o = run(mc.code_r(r, data(tmp_path, d)), tmp_path, "B <- coef(m); SE <- sqrt(diag(vcov(m)))\n" + OUT)
+    assert np.allclose(o.b.values, r.params.values, atol=1e-4) and np.allclose(o.se.values, r.bse.values, rtol=1e-3)
+
+
+@pytest.mark.skipif(not SEL_OK, reason="mhurdle not installed")
+@pytest.mark.parametrize("kind", ["cragg", "dhurdle"])
+def test_hurdles_vs_mhurdle(kind, tmp_path):
+    spec = rg.ModelSpec(y="fertilizer_spend_egp", x=["farm_size_feddan", "education_years", "credit_access"])
+    r = ldv.fit_hurdle(H, spec, kind=kind)
+    o = run(mc.code_r(r, data(tmp_path, H)), tmp_path, "B <- coef(m); SE <- sqrt(diag(vcov(m)))\n" + OUT)
+    k = 4
+    b = r.params.values
+    assert np.allclose(o.b.values[:k], b[:k], atol=2e-3)                        # participation hurdle
+    assert np.allclose(o.b.values[k:2 * k] / o.b.values[-1], b[k:2 * k] / b[-1], atol=2e-3)   # β / σ (mhurdle rescales y)
+    assert np.allclose(o.se.values[:k], r.bse.values[:k], rtol=2e-2)

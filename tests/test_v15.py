@@ -302,3 +302,33 @@ def test_generated_python_code_runs_for_logit_and_count(tmp_path):
         ns = {}
         exec(mc.code_python(r, str(f)).replace("print(", "(lambda *a, **k: None)("), ns)  # noqa: S102
         assert np.allclose(np.asarray(ns["res"].params), r.params.values, rtol=1e-6)
+
+
+# ---------------------------------------------------------------- multinomial probit
+def test_mnprobit_ghk_equals_quadrature_and_recovers_truth():
+    rng = np.random.default_rng(12)
+    n = 3000
+    x = rng.normal(size=n)
+    e = rng.normal(size=(n, 3))
+    U = np.c_[np.zeros(n), 0.3 + 0.8 * x, -0.2 - 0.6 * x] + e
+    d = pd.DataFrame({"x": x, "y": np.array(["A", "B", "C"])[U.argmax(axis=1)]})
+    r = ldv.fit_mnprobit(d, rg.ModelSpec(y="y", x=["x"]), base="A")
+    truth = np.array([0.3, 0.8, -0.2, -0.6])
+    assert np.all(np.abs(r.params.values - truth) < 3.5 * r.bse.values)
+    # GHK with Ω = I + 11ʹ (independent errors) reproduces the exact quadrature probabilities
+    X = r.design.X.to_numpy(float)
+    V = X @ r.params.values.reshape(2, 2).T
+    Ug = ldv._halton(2000, 2)
+    for c in range(3):
+        assert np.abs(ldv._ghk(V, np.full(n, c), np.eye(2) + 1, Ug) - r.extra["probs"][:, c]).max() < 5e-4
+    assert np.allclose(r.extra["probs"].sum(axis=1), 1, atol=1e-8)
+    me = mg.marginal_effects(d, r, r.extra["pred"], outputs=r.extra["outputs"])
+    assert abs(me["Effect"].sum()) < 1e-6          # effects on the three probabilities sum to zero
+
+
+def test_mnprobit_correlated_runs_and_reports_lr():
+    r = ldv.fit_mnprobit(H, rg.ModelSpec(y="technology_choice", x=XB[:3]), base="Traditional", correlated=True, draws=100)
+    assert "omega_corr" in r.extra and r.extra["LR_iid"][1] == 2
+    assert np.isclose(r.extra["omega"].iloc[0, 0], 2.0)
+    d = mr.diagnostics(H, r, "en")
+    assert d["Test"].str.contains("independent vs correlated").any()

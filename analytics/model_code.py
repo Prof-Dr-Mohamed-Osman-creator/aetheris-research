@@ -76,6 +76,10 @@ def code_python(r: rg.RegResult, file_name: str = "your_data.csv") -> str:
         L += [f"cats = {cats!r}  # first = base outcome", "codes = y.map({c: i for i, c in enumerate(cats)})",
               'res = sm.MNLogit(codes, X).fit(method="newton")', "print(res.summary())",
               "print(res.get_margeff().summary())"]
+    elif m == "mnprobit":
+        L += ["# No standard Python package estimates the frequentist multinomial probit; Aetheris computes it",
+              "# exactly (Gauss-Hermite quadrature, independent errors) or by GHK simulated ML (correlated errors).",
+              "# Stata: mprobit / cmmprobit (see the Stata tab)."]
     elif m in ("ologit", "oprobit"):
         L += ["from statsmodels.miscmodels.ordinal_model import OrderedModel",
               f"cats = {[str(c) for c in r.extra['categories']]!r}",
@@ -159,6 +163,10 @@ def code_r(r: rg.RegResult, file_name: str = "your_data.csv") -> str:
         L += [f'df${lhs.strip("`")} <- relevel(factor(df${lhs.strip("`")}), ref = "{base}")',
               f"m <- multinom({lhs} ~ {rhs}, data = df, maxit = 1000, reltol = 1e-12)", "summary(m)",
               "exp(coef(m))   # relative-risk ratios"]
+    elif m == "mnprobit":
+        L = _r_head(file_name, ["MNP"]) + ["# CRAN offers only the Bayesian multinomial probit (Imai & van Dyk):",
+                                          f"m <- mnp({lhs} ~ {rhs}, data = df, base = \"{r.extra['categories'][0]}\", n.draws = 20000)",
+                                          "summary(m)   # posterior estimates — comparable in sign / magnitude, not identical to ML"]
     elif m in ("ologit", "oprobit"):
         cats = [str(c) for c in r.extra["categories"]]
         L = _r_head(file_name, ["MASS"])
@@ -171,7 +179,8 @@ def code_r(r: rg.RegResult, file_name: str = "your_data.csv") -> str:
         L += [f"m <- tobit({lhs} ~ {rhs}, left = {lim}, data = df)", "summary(m)   # Log(scale) = ln σ"]
     elif m == "truncreg":
         L = _r_head(file_name, ["truncreg"])
-        L += [f"m <- truncreg({lhs} ~ {rhs}, point = {r.extra.get('lower', 0)}, direction = 'left', data = df)", "summary(m)"]
+        L += [f"m <- truncreg({lhs} ~ {rhs}, point = {r.extra.get('lower', 0)}, direction = 'left', data = df, iterlim = 1000)",
+              "summary(m)   # check convergence: truncreg's optimiser can stall when y has a large scale (rescale y if needed)"]
     elif m in ("heckman2", "heckman_ml"):
         sel = r.extra["selection_spec"]
         L = _r_head(file_name, ["sampleSelection"])
@@ -181,6 +190,8 @@ def code_r(r: rg.RegResult, file_name: str = "your_data.csv") -> str:
     elif m in ("cragg", "dhurdle"):
         L = _r_head(file_name, ["mhurdle"])
         L += ["# Cragg / double-hurdle: mhurdle(y ~ participation | outcome | 0, dist = 'n', corr = FALSE)",
+              "# mhurdle rescales y internally (scaled = TRUE): outcome coefficients and sd are in units of y / scale;",
+              "# the ratios β / σ and the participation (h1) coefficients are directly comparable with Aetheris.",
               f"m <- mhurdle({lhs} ~ {rhs} | {rhs} | 0, data = df, dist = 'n', h2 = {'TRUE' if m == 'dhurdle' else 'FALSE'}, corr = FALSE)",
               "summary(m)"]
     elif m in ("poisson", "ppml", "negbin"):
@@ -227,9 +238,18 @@ def code_stata(r: rg.RegResult, file_name: str = "your_data.csv") -> str:
             L += ["logit, or", "estat classification", "lroc", "estat gof, group(10)", "linktest"]
     elif m == "lpm":
         L += [f"regress {yv} {rhs}, vce(robust)"]
-    elif m == "mnlogit":
-        L += [f"encode {yv}, gen({yv[:28]}_n)", f"mlogit {yv[:28]}_n {rhs}, baseoutcome(1)   // set the base category",
-              "mlogit, rrr", "margins, dydx(*)"]
+    elif m in ("mnlogit", "mnprobit"):
+        cats = r.extra["categories"]
+        bpos = sorted(cats).index(cats[0]) + 1
+        L += [f"encode {yv}, gen({yv[:28]}_n)   // outcomes numbered alphabetically; base = {cats[0]}"]
+        if m == "mnlogit":
+            L += [f"mlogit {yv[:28]}_n {rhs}, baseoutcome({bpos})", "mlogit, rrr", "margins, dydx(*)"]
+        elif not r.extra.get("correlated"):
+            L += [f"mprobit {yv[:28]}_n {rhs}, baseoutcome({bpos})", "margins, dydx(*)"]
+        else:
+            L += ["gen long id = _n", f"expand {len(cats)}", "bysort id: gen alt = _n",
+                  f"gen chosen = (alt == {yv[:28]}_n)", "cmset id alt",
+                  f"cmmprobit chosen, casevars({rhs}) basealternative({bpos}) intpoints(200)", "estat covariance"]
     elif m in ("ologit", "oprobit"):
         L += [f"{m} {yv} {rhs}", "margins, dydx(*)",
               "* parallel-lines test: ssc install spost13_ado; brant, detail" if m == "ologit" else ""]

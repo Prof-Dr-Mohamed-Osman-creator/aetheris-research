@@ -408,7 +408,7 @@ class _GLL(GenericLikelihoodModel):
         return self._ll(params)
 
 
-def _mle(ll, start, names, n, method="bfgs", cov_type="nonrobust", groups=None):
+def _mle(ll, start, names, n, method="bfgs", cov_type="nonrobust", groups=None, refine=True):
     endog = np.zeros(n)
     exog = np.ones((n, 1))
     mod = _GLL(endog, exog, ll)
@@ -423,7 +423,7 @@ def _mle(ll, start, names, n, method="bfgs", cov_type="nonrobust", groups=None):
     elif cov_type == "cluster":
         kw = {"cov_type": "cluster", "cov_kwds": {"groups": groups}}
     res = mod.fit(start_params=np.asarray(start, float), method=method, maxiter=5000, disp=0, **kw)
-    res2 = mod.fit(start_params=res.params, method="newton", maxiter=100, disp=0, **kw) if method != "newton" else res
+    res2 = mod.fit(start_params=res.params, method="newton", maxiter=100, disp=0, **kw) if method != "newton" and refine else res
     if np.isfinite(res2.llf) and res2.llf >= res.llf - 1e-8:
         res = res2
     return res
@@ -762,4 +762,166 @@ def fit_hurdle(df: pd.DataFrame, outcome: rg.ModelSpec, participation: rg.ModelS
                                                                  " → Tobit is not rejected."))
     if not same:
         r.notes.append("Participation and outcome regressors differ: average effects are not computed automatically.")
+    return r
+
+
+# ==========================================================
+# Multinomial probit
+# ==========================================================
+def _halton(n: int, dim: int, skip: int = 20) -> np.ndarray:
+    primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29][:dim]
+    out = np.empty((n, dim))
+    for d, p in enumerate(primes):
+        seq = np.empty(n + skip)
+        for i in range(1, n + skip + 1):
+            f, r, k = 1.0, 0.0, i
+            while k > 0:
+                f /= p
+                r += f * (k % p)
+                k //= p
+            seq[i - 1] = r
+        out[:, d] = seq[skip:]
+    return out
+
+
+def _ghk(V: np.ndarray, chosen: np.ndarray, Omega: np.ndarray, U: np.ndarray) -> np.ndarray:
+    """GHK probabilities of the chosen alternative. V: n × (J−1) utilities relative to the base,
+    Omega: covariance of the differenced errors, U: R × (J−1) Halton uniforms."""
+    n, m = V.shape
+    P = np.empty(n)
+    for c in range(m + 1):
+        idx = np.where(chosen == c)[0]
+        if idx.size == 0:
+            continue
+        A = np.zeros((m, m))
+        if c == 0:
+            A = np.eye(m)
+            b = -V[idx]
+        else:
+            b = np.empty((idx.size, m))
+            for k in range(m):
+                if k == c - 1:
+                    A[k, k] = -1.0
+                    b[:, k] = V[idx, c - 1]
+                else:
+                    A[k, k], A[k, c - 1] = 1.0, -1.0
+                    b[:, k] = V[idx, c - 1] - V[idx, k]
+        S = A @ Omega @ A.T
+        C = np.linalg.cholesky(S + 1e-12 * np.eye(m))
+        R = U.shape[0]
+        prob = np.ones((idx.size, R))
+        z = np.zeros((idx.size, R, m))
+        for i in range(m):
+            mu = np.einsum("nrj,j->nr", z[:, :, :i], C[i, :i]) if i else 0.0
+            up = (b[:, i][:, None] - mu) / C[i, i]
+            Pu = special.ndtr(up)
+            prob *= Pu
+            if i < m - 1:
+                z[:, :, i] = special.ndtri(np.clip(U[None, :, i] * Pu, 1e-15, 1 - 1e-15))
+        P[idx] = prob.mean(axis=1)
+    return P
+
+
+def fit_mnprobit(df: pd.DataFrame, spec: rg.ModelSpec, base: str | None = None, correlated: bool = False,
+                 draws: int = 200, name: str = "") -> rg.RegResult:
+    """Multinomial probit for case-specific regressors. Independent errors (ε_j iid N(0, 1), as Stata
+    `mprobit`): exact probabilities by Gauss-Hermite quadrature. Correlated errors: covariance of the
+    differenced errors Ω = LLʹ with Ω₁₁ = 2 for scale (the value implied by iid errors), estimated by
+    simulated maximum likelihood with the GHK simulator and Halton draws (Geweke-Hajivassiliou-Keane)."""
+    design = _design(df, spec, y_raw=True)
+    yraw = design.y.astype(str)
+    cats = sorted(yraw.unique().tolist())
+    if base in cats:
+        cats.remove(base)
+        cats = [base] + cats
+    J = len(cats)
+    if J < 3:
+        raise ValueError("Multinomial probit needs at least three outcome categories (use probit for two).")
+    codes = yraw.map({c: i for i, c in enumerate(cats)}).to_numpy()
+    X = design.X.to_numpy(float)
+    n, k = X.shape
+    m = J - 1
+    gh_x, gh_w = np.polynomial.hermite.hermgauss(40)
+    tq = np.sqrt(2) * gh_x
+    wq = gh_w / np.sqrt(np.pi)
+    U = _halton(draws, m)
+    tri = [(i, j) for i in range(m) for j in range(i + 1)][1:]       # L[0,0] = √2 fixed
+
+    def omega(th):
+        L = np.zeros((m, m))
+        L[0, 0] = np.sqrt(2.0)
+        for (i, j), v in zip(tri, th):
+            L[i, j] = np.exp(v) if i == j else v
+        return L @ L.T
+
+    def probs_iid(Vfull):           # Vfull: n × J (base column = 0)
+        P = np.empty(Vfull.shape)
+        for c in range(J):
+            diff = Vfull[:, [c]] - np.delete(Vfull, c, axis=1)                    # n × (J−1)
+            inner = special.ndtr(tq[None, :, None] + diff[:, None, :]).prod(axis=2)   # n × Q
+            P[:, c] = inner @ wq
+        return P
+
+    def utilities(Xm, th):
+        B = th[:k * m].reshape(m, k).T
+        return Xm @ B                                                             # n × (J−1)
+
+    def ll(th):
+        V = utilities(X, th)
+        if correlated:
+            p = _ghk(V, codes, omega(th[k * m:]), U)
+        else:
+            Vf = np.c_[np.zeros(n), V]
+            c = codes
+            diff = Vf[np.arange(n), c][:, None] - Vf
+            diff = np.where(np.arange(J)[None, :] == c[:, None], np.inf, diff)
+            p = special.ndtr(tq[None, :, None] + diff[:, None, :]).prod(axis=2) @ wq
+        return np.log(np.clip(p, 1e-300, None))
+    mnl = fit_mnlogit(df, spec, base)
+    start = mnl.params.values / 1.28
+    names = list(mnl.names)
+    if correlated:
+        start = np.r_[start, np.zeros(len(tri))]
+        names += [f"L{i + 1}{j + 1}" if i != j else f"ln L{i + 1}{i + 1}" for i, j in tri]
+    res = _mle(ll, start, names, n, refine=not correlated)
+    theta = np.asarray(res.params)
+    cov = np.asarray(res.cov_params())
+
+    def pred(Xm, th, k=k, m=m):
+        V = utilities(Xm, th)
+        if not correlated:
+            return probs_iid(np.c_[np.zeros(len(Xm)), V])
+        Om = omega(th[k * m:])
+        return np.column_stack([_ghk(V, np.full(len(Xm), c), Om, U) for c in range(J)])
+    P = pred(X, theta)
+    ll0 = float(np.sum(np.log(np.bincount(codes, minlength=J)[codes] / n)))
+    r = _result(name or ("Multinomial probit (correlated, GHK)" if correlated else "Multinomial probit (independent errors)"),
+                "mnprobit", design, names, theta, cov, res.llf, n, codes, P.max(axis=1), k * m + 1, pred=pred,
+                outputs=cats, llnull=ll0,
+                extra={"family": "multinomial", "categories": cats, "codes": codes, "probs": P, "correlated": correlated,
+                       "draws": draws if correlated else None})
+    r.extra["accuracy"] = float(np.mean(P.argmax(axis=1) == codes))
+    r.extra["classification"] = pd.crosstab(pd.Series([cats[i] for i in codes], name="Actual"),
+                                             pd.Series([cats[i] for i in P.argmax(axis=1)], name="Predicted"))
+    if correlated:
+        Om = omega(theta[k * m:])
+        sd = np.sqrt(np.diag(Om))
+        lab = [f"{cats[j + 1]} − {cats[0]}" for j in range(m)]
+        r.extra["omega"] = pd.DataFrame(Om, index=lab, columns=lab)
+        r.extra["omega_corr"] = pd.DataFrame(Om / np.outer(sd, sd), index=lab, columns=lab)
+        r.notes.append(f"Simulated ML with {draws} Halton draws (GHK). Ω (covariance of utility differences relative to "
+                       f"'{cats[0]}') is normalised by Ω₁₁ = 2; with independent errors Ω would equal I + 11ʹ.")
+        iid = fit_mnprobit(df, spec, base, correlated=False)
+        LR = max(0.0, 2 * (r.llf - iid.llf))
+        q = len(tri)
+        r.extra["LR_iid"] = (float(LR), q, float(stats.chi2.sf(LR, q)))
+        r.notes.append(f"LR test of independent errors (Ω = I + 11ʹ): χ²({q}) = {LR:.3f}, p = {stats.chi2.sf(LR, q):.4f}"
+                       + (" → correlated errors are supported." if stats.chi2.sf(LR, q) < 0.05 else
+                          " → independent errors are not rejected; prefer the simpler model."))
+        r.notes.append("With only case-specific regressors the covariance parameters are weakly identified (Keane 1992): "
+                       "estimates of Ω can be imprecise and sensitive to the number of draws — interpret them with caution.")
+    else:
+        r.notes.append("Independent standard-normal errors (as Stata mprobit); choice probabilities computed exactly by "
+                       "40-point Gauss-Hermite quadrature. With independent errors the model shares the IIA-type "
+                       "restriction of the logit; use the correlated version to relax it.")
     return r
