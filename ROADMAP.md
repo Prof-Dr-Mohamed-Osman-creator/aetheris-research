@@ -58,6 +58,10 @@ Catalogue §1.7: decomposition and filters, the full unit-root battery (incl. Ng
 ARIMA / SARIMA with forecasting and out-of-sample evaluation, and long memory (ARFIMA). Next: v1.7 — VAR / VECM,
 cointegration, ARDL / NARDL and volatility models.
 
+### ✅ Phase 4d — Multivariate time series, cointegration and volatility (v1.7)
+Catalogue §1.8–1.9: VAR / SVAR, Granger and Toda-Yamamoto causality, Johansen / Engle-Granger / Gregory-Hansen, FMOLS /
+DOLS / CCR, VECM, ARDL bounds testing, NARDL, QARDL, the GARCH family and CCC / DCC / BEKK. Next: v1.8 — panel data.
+
 ### Phase 4 — Econometrics Lab (flagship, continuing)
 - **Cross-section:** OLS with full diagnostics (Breusch-Pagan/White, VIF, RESET, Jarque-Bera), robust & clustered SEs, Logit/Probit with marginal effects, quantile regression, IV/2SLS.
 - **Time series:** ADF/PP/KPSS/Zivot-Andrews unit roots, **ARDL bounds testing** (Pesaran) with ECM, Johansen cointegration, VAR/VECM, Granger causality, impulse responses, ARIMA/SARIMA forecasting, structural breaks.

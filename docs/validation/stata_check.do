@@ -534,5 +534,98 @@ chk "AR(2) b[ar.L1]" [ARMA]_b[L.ar] 1.1004373470260076 1e-4
 chk "AR(2) b[ar.L2]" [ARMA]_b[L2.ar] -0.27789596479197987 1e-4
 chk "AR(2) mean" [unemployment_rate]_b[_cons] 9.008293623369015 1e-4
 
+* ======================================================================
+* v1.7 — VAR, VECM, ARDL, GARCH
+* ======================================================================
+import delimited "v17_macro.csv", clear varnames(1) case(preserve)
+gen t = _n
+tsset t
+quietly var dy infl rate, lags(1/2) dfk
+chk "VAR [dy] b[dy.l1]" [dy]_b[L.dy] 0.13150499165643637 1e-6
+chk "VAR [dy] se[dy.l1]" [dy]_se[L.dy] 0.08954494314186288 1e-5
+chk "VAR [dy] b[infl.l1]" [dy]_b[L.infl] -0.0407883696083356 1e-6
+chk "VAR [dy] se[infl.l1]" [dy]_se[L.infl] 0.04969246312671724 1e-5
+chk "VAR [dy] b[rate.l1]" [dy]_b[L.rate] -0.11970443678378317 1e-6
+chk "VAR [dy] se[rate.l1]" [dy]_se[L.rate] 0.10354276271449636 1e-5
+chk "VAR [dy] b[dy.l2]" [dy]_b[L2.dy] 0.024649382215440174 1e-6
+chk "VAR [dy] se[dy.l2]" [dy]_se[L2.dy] 0.08594381431961934 1e-5
+chk "VAR [dy] b[infl.l2]" [dy]_b[L2.infl] 0.04269801099893744 1e-6
+chk "VAR [dy] se[infl.l2]" [dy]_se[L2.infl] 0.06452822276933318 1e-5
+chk "VAR [dy] b[rate.l2]" [dy]_b[L2.rate] 0.024869258593408262 1e-6
+chk "VAR [dy] se[rate.l2]" [dy]_se[L2.rate] 0.08890307784626043 1e-5
+chk "VAR [dy] b[const]" [dy]_b[_cons] 1.702309679077484 1e-6
+chk "VAR [dy] se[const]" [dy]_se[_cons] 0.5882428936120264 1e-5
+chk "VAR [infl] b[dy.l1]" [infl]_b[L.dy] -0.16976497282824818 1e-6
+chk "VAR [infl] se[dy.l1]" [infl]_se[L.dy] 0.15505238799124094 1e-5
+chk "VAR [infl] b[infl.l1]" [infl]_b[L.infl] 0.5007456114490026 1e-6
+chk "VAR [infl] se[infl.l1]" [infl]_se[L.infl] 0.08604545162039513 1e-5
+chk "VAR [infl] b[rate.l1]" [infl]_b[L.rate] 0.09100917990516555 1e-6
+chk "VAR [infl] se[rate.l1]" [infl]_se[L.rate] 0.17929044404728056 1e-5
+chk "VAR [infl] b[dy.l2]" [infl]_b[L2.dy] 0.054591541122799736 1e-6
+chk "VAR [infl] se[dy.l2]" [infl]_se[L2.dy] 0.14881681952962106 1e-5
+chk "VAR [infl] b[infl.l2]" [infl]_b[L2.infl] 0.05069555064342479 1e-6
+chk "VAR [infl] se[infl.l2]" [infl]_se[L2.infl] 0.11173445068098269 1e-5
+chk "VAR [infl] b[rate.l2]" [infl]_b[L2.rate] -0.09800563360741832 1e-6
+chk "VAR [infl] se[rate.l2]" [infl]_se[L2.rate] 0.1539409601053112 1e-5
+chk "VAR [infl] b[const]" [infl]_b[_cons] 3.793525023107628 1e-6
+chk "VAR [infl] se[const]" [infl]_se[_cons] 1.0185775117297673 1e-5
+chk "VAR [rate] b[dy.l1]" [rate]_b[L.dy] 0.036040338101986535 1e-6
+chk "VAR [rate] se[dy.l1]" [rate]_se[L.dy] 0.07569722301025834 1e-5
+chk "VAR [rate] b[infl.l1]" [rate]_b[L.infl] 0.35244693589532466 1e-6
+chk "VAR [rate] se[infl.l1]" [rate]_se[L.infl] 0.04200774863715994 1e-5
+chk "VAR [rate] b[rate.l1]" [rate]_b[L.rate] 0.7678086080349391 1e-6
+chk "VAR [rate] se[rate.l1]" [rate]_se[L.rate] 0.0875303431471299 1e-5
+chk "VAR [rate] b[dy.l2]" [rate]_b[L2.dy] -0.10404848738940764 1e-6
+chk "VAR [rate] se[dy.l2]" [rate]_se[L2.dy] 0.07265299245986116 1e-5
+chk "VAR [rate] b[infl.l2]" [rate]_b[L2.infl] -0.005717747642346227 1e-6
+chk "VAR [rate] se[infl.l2]" [rate]_se[L2.infl] 0.054549225205127824 1e-5
+chk "VAR [rate] b[rate.l2]" [rate]_b[L2.rate] -0.05362958250040184 1e-6
+chk "VAR [rate] se[rate.l2]" [rate]_se[L2.rate] 0.07515461927721687 1e-5
+chk "VAR [rate] b[const]" [rate]_b[_cons] 0.496332287146816 1e-6
+chk "VAR [rate] se[const]" [rate]_se[_cons] 0.49727379279703765 1e-5
+quietly vec y c i, lags(3) rank(2) trend(constant)
+chk "VECM beta CE1[i]" [_ce1]_b[i] -0.9819716511656666 1e-5
+chk "VECM beta CE2[i]" [_ce2]_b[i] -0.9987889035688545 1e-5
+chk "VECM alpha D_y CE1" [D_y]_b[L._ce1] -0.02368843411237165 1e-5
+chk "VECM alpha D_c CE1" [D_c]_b[L._ce1] 0.34791127386880977 1e-5
+chk "VECM alpha D_i CE1" [D_i]_b[L._ce1] 0.20313062786607639 1e-5
+import delimited "v17_wheat.csv", clear varnames(1) case(preserve)
+gen t = _n
+tsset t
+capture which ardl
+if _rc ssc install ardl
+quietly ardl d x e, lags(2 2 1) exog(rain)
+chk "ARDL b[(Intercept)]" _b[_cons] 0.006160841432443553 1e-6
+chk "ARDL se[(Intercept)]" _se[_cons] 0.06861232991695417 1e-5
+chk "ARDL b[L(d, 1)]" _b[L.d] 1.1034019347911277 1e-6
+chk "ARDL se[L(d, 1)]" _se[L.d] 0.059036289126454373 1e-5
+chk "ARDL b[L(d, 2)]" _b[L2.d] -0.1563716019657968 1e-6
+chk "ARDL se[L(d, 2)]" _se[L2.d] 0.055816224735434135 1e-5
+chk "ARDL b[x]" _b[x] 0.2838322905393458 1e-6
+chk "ARDL se[x]" _se[x] 0.03832107985689287 1e-5
+chk "ARDL b[L(x, 1)]" _b[L.x] -0.18805271099901377 1e-6
+chk "ARDL se[L(x, 1)]" _se[L.x] 0.04241351131145251 1e-5
+chk "ARDL b[L(x, 2)]" _b[L2.x] -0.04465593340493944 1e-6
+chk "ARDL se[L(x, 2)]" _se[L2.x] 0.02477596838018605 1e-5
+chk "ARDL b[e]" _b[e] 0.01528225497816349 1e-6
+chk "ARDL se[e]" _se[e] 0.04541247287439591 1e-5
+chk "ARDL b[L(e, 1)]" _b[L.e] -0.002242278065970993 1e-6
+chk "ARDL se[L(e, 1)]" _se[L.e] 0.04510348390840337 1e-5
+chk "ARDL b[rain]" _b[rain] -0.0053086077784174485 1e-6
+chk "ARDL se[rain]" _se[rain] 0.0011641771443510853 1e-5
+quietly ardl d x e, lags(2 2 1) exog(rain) ec
+quietly estat ectest
+chk "ARDL bounds F (case 3)" r(F_pss) 5.98197552167385 1e-5
+import delimited "v17_returns.csv", clear varnames(1) case(preserve)
+gen t = _n
+tsset t
+* Stata initialises sigma2_0 with the OLS mean squared residual; Aetheris (as fGarch) with the current one —
+* estimates agree to about 3 decimals.
+quietly arch r, arch(1) garch(1)
+chk "GARCH(1,1) mu" [r]_b[_cons] 0.06844342400020127 5e-3
+chk "GARCH(1,1) alpha" [ARCH]_b[L.arch] 0.10942036145548271 1e-2
+chk "GARCH(1,1) beta" [ARCH]_b[L.garch] 0.8239171212955057 1e-2
+chk "GARCH(1,1) omega" [ARCH]_b[_cons] 0.04675695526559749 5e-2
+
 display _n "Total failures: $fails"
 if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."

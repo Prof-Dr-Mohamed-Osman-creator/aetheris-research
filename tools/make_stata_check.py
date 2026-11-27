@@ -212,6 +212,67 @@ def v16_blocks():
     return ["\n".join(L)]
 
 
+def v17_blocks():
+    """v1.7 — VAR, VECM, ARDL and GARCH (Stata: var, vec, ardl [ssc], arch)."""
+    import numpy as np
+    import pandas as pd
+    from analytics import ardl as ad
+    from analytics import garch as gm
+    from analytics import var as vr
+    from data.samples import financial_returns_demo, macro_var_demo, price_transmission_demo
+    M = macro_var_demo()
+    V = pd.DataFrame({"dy": 100 * np.diff(np.log(M.gdp_bn)), "infl": M.inflation_pct[1:].values,
+                      "rate": M.policy_rate_pct[1:].values, "y": np.log(M.gdp_bn)[1:].values,
+                      "c": np.log(M.consumption_bn)[1:].values, "i": np.log(M.investment_bn)[1:].values})
+    V.to_csv(OUT / "v17_macro.csv", index=False)
+    PT = price_transmission_demo()
+    A = pd.DataFrame({"d": np.log(PT.domestic_wheat_egp_t), "x": np.log(PT.import_parity_egp_t),
+                      "e": np.log(PT.exchange_rate_egp_usd), "rain": PT.rainfall_anomaly})
+    A.to_csv(OUT / "v17_wheat.csv", index=False)
+    R = pd.DataFrame({"r": gm.returns(financial_returns_demo().equity_index.values)})
+    R.to_csv(OUT / "v17_returns.csv", index=False)
+    L = [f"\n* {'=' * 70}\n* v1.7 — VAR, VECM, ARDL, GARCH\n* {'=' * 70}",
+         'import delimited "v17_macro.csv", clear varnames(1) case(preserve)', "gen t = _n", "tsset t",
+         "quietly var dy infl rate, lags(1/2) dfk"]
+    r = vr.fit_var(V[["dy", "infl", "rate"]], 2, "const")
+    for k, eq in enumerate(r.names):
+        for j, rn in enumerate(r.reg_names):
+            nm, lag = (rn.split(".l") if ".l" in rn else (rn, None))
+            sn = f"L{lag}.{nm}" if lag and lag != "1" else (f"L.{nm}" if lag else "_cons")
+            L.append(f'chk "VAR [{eq}] b[{rn}]" [{eq}]_b[{sn}] {float(r.B[j, k])!r} 1e-6')
+            L.append(f'chk "VAR [{eq}] se[{rn}]" [{eq}]_se[{sn}] {float(r.se[j, k])!r} 1e-5')
+    jo = vr.johansen(V[["y", "c", "i"]], 3, 3)
+    vm = vr.vecm(jo, 2)
+    b = vm["beta"].to_numpy()
+    al = vm["alpha"]
+    L += ["quietly vec y c i, lags(3) rank(2) trend(constant)",
+          f'chk "VECM beta CE1[i]" [_ce1]_b[i] {float(b[2, 0])!r} 1e-5',
+          f'chk "VECM beta CE2[i]" [_ce2]_b[i] {float(b[2, 1])!r} 1e-5']
+    for v in ("y", "c", "i"):
+        L.append(f'chk "VECM alpha D_{v} CE1" [D_{v}]_b[L._ce1] {float(al.loc[v, "CE1"])!r} 1e-5')
+    L += ['import delimited "v17_wheat.csv", clear varnames(1) case(preserve)', "gen t = _n", "tsset t",
+          "capture which ardl", "if _rc ssc install ardl",
+          "quietly ardl d x e, lags(2 2 1) exog(rain)"]
+    ra = ad.fit_ardl(A, "d", ["x", "e"], (2, 2, 1), 3, ["rain"])
+    smap = {"(Intercept)": "_cons", "L(d, 1)": "L.d", "L(d, 2)": "L2.d", "x": "x", "L(x, 1)": "L.x", "L(x, 2)": "L2.x",
+            "e": "e", "L(e, 1)": "L.e", "rain": "rain"}
+    for nm, bv, se in zip(ra.names, ra.b, np.sqrt(np.diag(ra.V))):
+        L.append(f'chk "ARDL b[{nm}]" _b[{smap[nm]}] {float(bv)!r} 1e-6')
+        L.append(f'chk "ARDL se[{nm}]" _se[{smap[nm]}] {float(se)!r} 1e-5')
+    L += ["quietly ardl d x e, lags(2 2 1) exog(rain) ec", "quietly estat ectest",
+          f'chk "ARDL bounds F (case 3)" r(F_pss) {float(ad.bounds_test(ra)["F"])!r} 1e-5']
+    g = gm.fit_garch(R.r.values, "garch", 1, 1, "norm")
+    L += ['import delimited "v17_returns.csv", clear varnames(1) case(preserve)', "gen t = _n", "tsset t",
+          "* Stata initialises sigma2_0 with the OLS mean squared residual; Aetheris (as fGarch) with the current one —",
+          "* estimates agree to about 3 decimals.",
+          "quietly arch r, arch(1) garch(1)",
+          f'chk "GARCH(1,1) mu" [r]_b[_cons] {float(g.p_("mu"))!r} 5e-3',
+          f'chk "GARCH(1,1) alpha" [ARCH]_b[L.arch] {float(g.p_("alpha1"))!r} 1e-2',
+          f'chk "GARCH(1,1) beta" [ARCH]_b[L.garch] {float(g.p_("beta1"))!r} 1e-2',
+          f'chk "GARCH(1,1) omega" [ARCH]_b[_cons] {float(g.p_("omega"))!r} 5e-2']
+    return ["\n".join(L)]
+
+
 def main():
     farm = farm_survey_demo()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -264,6 +325,7 @@ def main():
     parts.append(block("Linear model, custom reference level", rg.fit(farm, lin)))
     parts += v15_blocks()
     parts += v16_blocks()
+    parts += v17_blocks()
     parts += ['\ndisplay _n "Total failures: $fails"',
               'if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."']
     (OUT / "stata_check.do").write_text("\n".join(parts) + "\n", encoding="utf-8")
