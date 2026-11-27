@@ -164,6 +164,54 @@ def v15_blocks():
     return out
 
 
+def v16_blocks():
+    """v1.6 — unit-root statistics and ARIMA maximum likelihood (Stata: dfuller, pperron, dfgls, arima)."""
+    import numpy as np
+    import pandas as pd
+    from analytics import ts
+    from data.samples import macro_ts_demo
+    M = macro_ts_demo()
+    M.to_csv(OUT / "macro_ts_demo.csv", index=False)
+    y = np.log(M.cpi_index.values)
+    L = [f"\n* {'=' * 70}\n* v1.6 — unit roots and ARIMA (macro_ts_demo.csv)\n* {'=' * 70}",
+         'import delimited "macro_ts_demo.csv", clear varnames(1) case(preserve)',
+         "gen t = _n", "tsset t", "gen ln_cpi = ln(cpi_index)"]
+    a = ts.adf(y, "ct", None, 4)
+    L += ["quietly dfuller ln_cpi, trend lags(4)", f'chk "ADF tau (trend, 4 lags)" r(Zt) {float(a["stat"])!r} 1e-6']
+    a = ts.adf(np.diff(y), "c", None, 2)
+    L += ["quietly dfuller D.ln_cpi, lags(2)", f'chk "ADF tau on D.ln_cpi (2 lags)" r(Zt) {float(a["stat"])!r} 1e-6']
+    for reg, opt in (("c", ""), ("ct", " trend")):
+        pp = ts.phillips_perron(y, reg)
+        L += [f"quietly pperron ln_cpi,{opt} lags({pp['lags']})",
+              f'chk "Phillips-Perron Z(t) ({reg})" r(Zt) {float(pp["stat"])!r} 2e-3',
+              f'chk "Phillips-Perron Z(rho) ({reg})" r(Zrho) {float(pp["Z_alpha"])!r} 2e-3']
+    g = ts.dfgls(y, "ct", lags=4)
+    L += ["quietly dfgls ln_cpi, maxlag(4)", "matrix DG = r(results)",
+          "* r(results): rows k = maxlag … 1; column 5 = DF-GLS tau",
+          f'chk "DF-GLS tau (trend, 4 lags)" el(DG,1,5) {float(g["stat"])!r} 1e-4']
+    r = ts.fit_arima(pd.Series(M.wheat_price_egp_t.values), (1, 1, 1))
+    P = r.res.params
+    B = r.res.bse
+    L += ["quietly arima wheat_price_egp_t, arima(1,1,1) noconstant vce(oim)",
+          f'chk "ARIMA(1,1,1) b[ar.L1]" [ARMA]_b[L.ar] {float(P["ar.L1"])!r} 1e-3',
+          f'chk "ARIMA(1,1,1) b[ma.L1]" [ARMA]_b[L.ma] {float(P["ma.L1"])!r} 1e-3',
+          f'chk "ARIMA(1,1,1) se[ar.L1]" [ARMA]_se[L.ar] {float(B["ar.L1"])!r} 5e-3',
+          f'chk "ARIMA(1,1,1) sigma" [sigma]_b[_cons] {float(np.sqrt(P["sigma2"]))!r} 1e-3',
+          f'chk "ARIMA(1,1,1) log-likelihood" e(ll) {float(r.res.llf)!r} 1e-5']
+    r = ts.fit_arima(pd.Series(y), (0, 1, 1), (0, 1, 1), 12)
+    P = r.res.params
+    L += ["quietly arima ln_cpi, arima(0,1,1) sarima(0,1,1,12) noconstant vce(oim)",
+          f'chk "SARIMA b[ma.S.L12]" [ARMA12]_b[L.ma] {float(P["ma.S.L12"])!r} 1e-3',
+          f'chk "SARIMA log-likelihood" e(ll) {float(r.res.llf)!r} 1e-5']
+    r = ts.fit_arima(pd.Series(M.unemployment_rate.values), (2, 0, 0))
+    P = r.res.params
+    L += ["quietly arima unemployment_rate, ar(1/2) vce(oim)",
+          f'chk "AR(2) b[ar.L1]" [ARMA]_b[L.ar] {float(P["ar.L1"])!r} 1e-4',
+          f'chk "AR(2) b[ar.L2]" [ARMA]_b[L2.ar] {float(P["ar.L2"])!r} 1e-4',
+          f'chk "AR(2) mean" [unemployment_rate]_b[_cons] {float(P["const"])!r} 1e-4']
+    return ["\n".join(L)]
+
+
 def main():
     farm = farm_survey_demo()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -215,6 +263,7 @@ def main():
                        reference={"region": "New Lands"})
     parts.append(block("Linear model, custom reference level", rg.fit(farm, lin)))
     parts += v15_blocks()
+    parts += v16_blocks()
     parts += ['\ndisplay _n "Total failures: $fails"',
               'if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."']
     (OUT / "stata_check.do").write_text("\n".join(parts) + "\n", encoding="utf-8")

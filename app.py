@@ -109,10 +109,12 @@ if page == "home":
         ("📐", tr("Econometrics Lab", "مختبر الاقتصاد القياسي"),
          tr("Regression with 5 functional forms, OLS/WLS/FGLS/GLS/robust/RLS/NLS, robust SEs, 25+ diagnostics, "
             "IV / 2SLS / GMM / 3SLS / SUR, logit-probit-multinomial-ordered, Tobit / Heckman / hurdles, count and survival "
-            "models, elasticities, journal tables, policy what-if and Python/R/Stata code. Time series & panel next.",
+            "models, unit roots and Box-Jenkins ARIMA / SARIMA / ARFIMA forecasting, elasticities, journal tables, policy what-if "
+            "and Python/R/Stata code. VAR / cointegration and panel next.",
             "الانحدار بخمس صور دالية، وOLS وWLS وFGLS وGLS والمتين والمقيد وغير الخطي، والأخطاء المتينة، وأكثر من 25 "
             "اختباراً تشخيصياً، والمتغيرات الأداتية والأنظمة، ونماذج الاستجابة النوعية والمراقَبة والاختيار، والعدّ والبقاء، "
-            "والمرونات، وجداول المجلات، ومحاكاة «ماذا لو»، وكود Python وR وStata. السلاسل الزمنية والبانل قادمة.")),
+            "وجذور الوحدة ومنهجية بوكس-جنكنز للتنبؤ (ARIMA وSARIMA وARFIMA)، والمرونات، وجداول المجلات، ومحاكاة «ماذا لو»، "
+            "وكود Python وR وStata. نماذج VAR والتكامل المشترك والبانل قادمة.")),
         ("⚙️", tr("Operations Research", "بحوث العمليات"),
          tr("Linear programming, transportation, efficiency (DEA) — in development.",
             "البرمجة الخطية، ومسائل النقل، وتحليل الكفاءة (DEA) — قيد التطوير.")),

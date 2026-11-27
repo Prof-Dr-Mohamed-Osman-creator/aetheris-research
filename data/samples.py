@@ -154,3 +154,46 @@ def market_sem_demo(seed: int = 3, n: int = 60) -> pd.DataFrame:
     Q = 20 + 1.5 * P + 0.4 * rain - 1.2 * cost + v
     return pd.DataFrame({"year": year, "quantity": np.round(Q, 2), "price": np.round(P, 3),
                          "income": np.round(income, 2), "rainfall": np.round(rain, 1), "input_cost": np.round(cost, 2)})
+
+
+def macro_ts_demo(seed: int = 11) -> pd.DataFrame:
+    """Synthetic monthly series (Jan 2000 – Dec 2025) for time-series training: a seasonal I(1) price index
+    with drift, an ARIMA(1,1,1) commodity price, a stationary AR(2) unemployment rate, a seasonal
+    stationary rainfall series and a long-memory (d ≈ 0.3) river-flow index."""
+    rng = np.random.default_rng(seed)
+    n = 312
+    date = pd.date_range("2000-01-01", periods=n, freq="MS")
+    month = date.month.to_numpy()
+    seas = 0.012 * np.sin(2 * np.pi * month / 12) + 0.006 * np.cos(2 * np.pi * month / 12)
+    lcpi = 4.6 + np.cumsum(0.006 + rng.normal(0, 0.008, n)) + seas
+    e = rng.normal(0, 4, n + 1)
+    dp = np.zeros(n)
+    for t in range(1, n):
+        dp[t] = 0.5 * dp[t - 1] + e[t] + 0.3 * e[t - 1]
+    wheat = 3000 + np.cumsum(dp)
+    u = np.zeros(n)
+    for t in range(2, n):
+        u[t] = 1.1 * u[t - 1] - 0.3 * u[t - 2] + rng.normal(0, 0.25)
+    unemp = 9 + u
+    rain = np.maximum(0, 20 + 15 * np.cos(2 * np.pi * (month - 1) / 12) + rng.normal(0, 5, n))
+    d = 0.3
+    w = np.empty(600)
+    w[0] = 1.0
+    for k in range(1, 600):
+        w[k] = w[k - 1] * (k - 1 + d) / k
+    eps = rng.normal(size=n + 600)
+    flow = np.array([w @ eps[t:t + 600][::-1] for t in range(n)])
+    return pd.DataFrame({"date": date, "cpi_index": np.round(np.exp(lcpi), 2), "wheat_price_egp_t": np.round(wheat, 1),
+                         "unemployment_rate": np.round(unemp, 2), "rainfall_mm": np.round(rain, 1),
+                         "nile_flow_index": np.round(100 + 5 * flow, 2)})
+
+
+def quarterly_demo(seed: int = 5) -> pd.DataFrame:
+    """Synthetic quarterly agricultural output (1990Q1–2025Q4) with seasonal unit roots — for the HEGY test."""
+    rng = np.random.default_rng(seed)
+    n = 144
+    x = np.zeros(n + 4)
+    for t in range(4, n + 4):
+        x[t] = x[t - 4] + 0.5 + rng.normal(0, 1.0)
+    return pd.DataFrame({"quarter": pd.date_range("1990-01-01", periods=n, freq="QS"),
+                         "ag_output_index": np.round(100 + x[4:], 2)})
