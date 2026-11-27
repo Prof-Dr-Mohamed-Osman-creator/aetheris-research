@@ -239,21 +239,140 @@
 ---
 
 ## 9. محور بحوث العمليات — Operations Research
-| المجموعة | النماذج |
+> لكل نموذج: صياغة النموذج من بيانات المستخدم، والحل الأمثل، و**خطوات الحل التفصيلية للطلاب** (حيث ينطبق)، وتحليل الحساسية، والرسوم (المنطقة الممكنة، والشبكات، ومخطط جانت، ومنحنيات المحاكاة)، والتفسير الاقتصادي، وتوصية لصانع القرار.
+
+### 9.1 البرمجة الخطية — Linear Programming
+| النموذج / الطريقة | Model / method |
 |---|---|
-| البرمجة الخطية | الطريقة البيانية، و**السمبلكس بجداوله خطوة بخطوة (للطلاب)**، والثنائية، وتحليل الحساسية وأسعار الظل |
-| البرمجة الصحيحة والمختلطة | الفرع والحد |
-| البرمجة بالأهداف والمتعددة الأهداف | Goal programming, multi-objective |
-| النقل والتخصيص | الركن الشمالي الغربي، وأقل تكلفة، وفوجل، وMODI؛ الطريقة المجرية |
-| الشبكات | أقصر مسار، والتدفق الأقصى، وأصغر شجرة ممتدة |
-| إدارة المشروعات | CPM وPERT وضغط المشروع |
-| المخزون | EOQ وEPQ، وخصم الكمية، وبائع الصحف |
-| صفوف الانتظار | M/M/1، وM/M/c، وM/M/1/K |
-| نظرية القرار | لابلاس، وماكسيمين، وهورويتز، وسافاج، والقيمة النقدية المتوقعة، وشجرة القرار، وقيمة المعلومات |
-| نظرية المباريات | المباريات الصفرية، والاستراتيجيات المختلطة، وتوازن ناش |
-| أخرى | سلاسل ماركوف، ومحاكاة مونت كارلو، والبرمجة الديناميكية، والبرمجة غير الخطية |
-| تطبيقات زراعية واقتصادية | **التخطيط المزرعي الأمثل**، وأقل تكلفة لعلائق الحيوان، وMOTAD وTarget MOTAD، وبرمجة المخاطر |
-| القرار متعدد المعايير | AHP وTOPSIS |
+| الصياغة الرياضية من مسألة لفظية (مع مساعد) | Problem formulation assistant |
+| الحل البياني لمتغيرين مع رسم المنطقة الممكنة وخط دالة الهدف | Graphical method |
+| طريقة السمبلكس بجداولها خطوة بخطوة، والمعاقبة الكبرى (Big-M)، وطريقة المرحلتين | Simplex tableaux, Big-M, two-phase |
+| السمبلكس الثنائي والمعدّل، والمسألة الثنائية وتفسيرها الاقتصادي | Dual simplex, revised simplex, duality |
+| تحليل الحساسية: مدى معاملات دالة الهدف والطرف الأيمن، **أسعار الظل**، والتكاليف المخفضة، والبرمجة البارامترية | Sensitivity, shadow prices, reduced costs, parametric LP |
+| الحالات الخاصة: الحلول المتعددة، وغير المحدود، وغير الممكن، والانحلال | Special cases |
+| البرمجة الصحيحة والمختلطة: الفرع والحد، والمستويات القاطعة، ومسائل الحقيبة 0-1، والتكلفة الثابتة، وتغطية المجموعات، وتحديد مواقع المرافق | Integer / mixed-integer, B&B, cutting planes, knapsack, fixed charge, set covering, facility location |
+| تطبيقات: التخطيط المزرعي الأمثل، وأقل تكلفة لعلائق الحيوان، ومزيج الإنتاج، وتخطيط القوى العاملة، والخلط | Farm planning, least-cost ration, product mix, staffing, blending |
+
+### 9.2 البرمجة غير الخطية والطرق العددية — Nonlinear & Numerical Programming
+| النموذج / الطريقة | Model / method |
+|---|---|
+| الأمثلية غير المقيدة: الشروط الضرورية والكافية، ونيوتن-رافسون، والتدرج (أشد انحدار)، وطرق شبه نيوتن (BFGS) | Unconstrained optimisation, Newton, gradient, BFGS |
+| البحث أحادي البعد: النسبة الذهبية، وفيبوناتشي، والتنصيف | Line search: golden section, Fibonacci, bisection |
+| الأمثلية المقيدة: مضاعفات لاجرانج، وشروط كاروش-كون-تاكر (KKT) | Lagrange multipliers, KKT conditions |
+| البرمجة التربيعية (ومنها محفظة ماركوفيتز وMOTAD)، والبرمجة القابلة للفصل والكسرية والهندسية والمحدبة | Quadratic, separable, fractional, geometric, convex programming |
+| الخوارزميات الاستدلالية والميتا-استدلالية: الخوارزمية الجينية، والتلدين المحاكى، والبحث المحظور، وسرب الجسيمات | Metaheuristics: GA, simulated annealing, tabu search, PSO |
+
+### 9.3 برمجة الأهداف وتعدد الأهداف — Goal & Multi-objective Programming
+| النموذج / الطريقة | Model / method |
+|---|---|
+| برمجة الأهداف الموزونة والتسلسلية (ذات الأولويات) والحد الأدنى-الأعظم | Weighted, preemptive (lexicographic), min-max (Chebyshev) goal programming |
+| برمجة الأهداف الضبابية | Fuzzy goal programming |
+| البرمجة متعددة الأهداف: المجموع الموزون، وقيد إبسلون، و**رسم حدود باريتو** | Weighted sum, ε-constraint, Pareto frontier |
+| التطبيقات: الموازنة بين الربح والمخاطرة والمياه والعمالة في الخطط الزراعية، والتخطيط الإقليمي | Profit–risk–water–labour trade-offs, regional planning |
+
+### 9.4 نماذج اتخاذ القرار متعدد المعايير — MCDM
+| النموذج / الطريقة | Model / method |
+|---|---|
+| العملية الهرمية التحليلية AHP، مع **نسبة الاتساق** ودمج آراء الخبراء (المتوسط الهندسي) | AHP with consistency ratio, group aggregation |
+| AHP الضبابي، والشبكية ANP | Fuzzy AHP, ANP |
+| TOPSIS، وTOPSIS الضبابي | TOPSIS, fuzzy TOPSIS |
+| VIKOR، وPROMETHEE I/II، وELECTRE، وSAW، وWASPAS، وCOPRAS، وMOORA، وEDAS | VIKOR, PROMETHEE, ELECTRE, SAW, WASPAS, COPRAS, MOORA, EDAS |
+| أساليب الأوزان: الإنتروبي، وCRITIC، وأفضل-أسوأ (BWM)، وSWARA | Entropy, CRITIC, Best-Worst Method, SWARA weights |
+| DEMATEL للعلاقات السببية بين المعايير | DEMATEL |
+| **تحليل حساسية الترتيب** لتغير الأوزان، والمقارنة بين نتائج الطرق المختلفة | Rank sensitivity & method comparison |
+
+### 9.5 نماذج النقل والتخصيص — Transportation & Assignment
+| النموذج / الطريقة | Model / method |
+|---|---|
+| الحل الأساسي الأولي: الركن الشمالي الغربي، وأقل تكلفة، و**فوجل التقريبية** | NW corner, least cost, Vogel's approximation |
+| اختبار الأمثلية: MODI (u-v) والحجر المتنقل | MODI, stepping stone |
+| الحالات الخاصة: غير المتوازنة، والانحلال، والمسارات الممنوعة، وتعظيم الربح | Unbalanced, degeneracy, prohibited routes, maximisation |
+| مسائل الشحن العابر (Transshipment) | Transshipment |
+| التخصيص: **الطريقة المجرية**، وغير المتوازن، والتعظيم، والقيود | Hungarian method and variants |
+| البائع المتجول وتوجيه المركبات (VRP) | TSP, vehicle routing |
+
+### 9.6 نظرية الألعاب ونماذج التفاعل الاستراتيجي — Game Theory & Strategic Interaction
+| النموذج / الطريقة | Model / method |
+|---|---|
+| المباريات الصفرية لشخصين: نقطة السرج، والسيطرة، والاستراتيجيات المختلطة (جبرياً، وبيانياً، وبالبرمجة الخطية) | Two-person zero-sum, saddle point, dominance, mixed strategies |
+| المباريات غير الصفرية: **توازن ناش**، ومعضلة السجين، والمباريات المتسلسلة (شجرة اللعبة والاستقراء العكسي) | Nash equilibrium, prisoner's dilemma, sequential games, backward induction |
+| نماذج احتكار القلة: كورنو، وبرتراند، وستاكلبرج، والتواطؤ | Cournot, Bertrand, Stackelberg, collusion |
+| المباريات التعاونية: **قيمة شابلي**، والنواة، والمساومة لناش (تقاسم المياه والموارد) | Shapley value, core, Nash bargaining |
+| المباريات المتكررة والتطورية والمعلومات غير الكاملة (Bayesian) | Repeated, evolutionary, Bayesian games |
+| تطبيقات: التفاوض التجاري، وإدارة الموارد المشتركة، وسياسات التسعير | Trade negotiation, common-pool resources, pricing |
+
+### 9.7 نماذج الشبكات وإدارة المشروعات — Networks & Project Management
+| النموذج / الطريقة | Model / method |
+|---|---|
+| أقصر مسار (ديكسترا، فلويد)، وأصغر شجرة ممتدة (بريم، كروسكال)، والتدفق الأقصى (فورد-فولكرسون)، والتدفق الأقل تكلفة | Shortest path, minimum spanning tree, max flow, min-cost flow |
+| **CPM**: المسار الحرج، والأوقات المبكرة والمتأخرة، والفائض الكلي والحر، و**مخطط جانت** | Critical path, floats, Gantt chart |
+| **PERT**: التقديرات الثلاثة، و**احتمال إنجاز المشروع في موعد محدد** | Three-point estimates, completion probability |
+| ضغط المشروع (الوقت-التكلفة)، وتسوية الموارد وتحميلها | Crashing, resource levelling & loading |
+| محاكاة مونت كارلو لمدة المشروع | Monte Carlo schedule risk |
+
+### 9.8 نماذج المخزون — Inventory
+| النموذج / الطريقة | Model / method |
+|---|---|
+| الحتمية: EOQ، والإنتاج الاقتصادي EPQ، والعجز المسموح، وخصم الكمية، والأصناف المتعددة بقيود | EOQ, EPQ, planned shortages, quantity discounts, multi-item constrained |
+| الاحتمالية: نقطة إعادة الطلب ومخزون الأمان، ونظاما (s, S) و(R, Q)، والمراجعة الدورية | Reorder point & safety stock, (s,S), (R,Q), periodic review |
+| نموذج بائع الصحف (الفترة الواحدة) | Newsvendor |
+| تحليل ABC وVED | ABC / VED analysis |
+| تطبيقات: مخزون الحبوب والأعلاف والأسمدة، والمخزون الاستراتيجي من السلع | Grain, feed, fertiliser & strategic reserves |
+
+### 9.9 نماذج صفوف الانتظار — Queueing
+| النموذج / الطريقة | Model / method |
+|---|---|
+| M/M/1، وM/M/c، وM/M/1/K، وM/M/c/K، والمجتمع المحدود | M/M/1, M/M/c, finite capacity & finite source |
+| M/G/1 (بولاتشيك-خينتشين)، وM/D/1، وأولويات الخدمة | M/G/1, M/D/1, priority queues |
+| مقاييس الأداء: Lq وL وWq وW وP0 ونسبة الاستخدام | Performance measures |
+| **اقتصاديات صفوف الانتظار**: العدد الأمثل لمنافذ الخدمة الذي يقلل التكلفة الكلية | Cost optimisation of servers |
+| تطبيقات: صوامع الاستلام، والموانئ، والمستشفيات، والبنوك | Silos, ports, hospitals, banks |
+
+### 9.10 المحاكاة وتحليل القرار — Simulation & Decision Analysis
+| النموذج / الطريقة | Model / method |
+|---|---|
+| توليد الأعداد العشوائية واختبارها، وتوليد المتغيرات من التوزيعات | Random number & variate generation |
+| **محاكاة مونت كارلو** مع تحليل المخاطر للمشروعات والأرباح الزراعية | Monte Carlo risk analysis |
+| محاكاة الأحداث المتقطعة (صفوف الانتظار والمخزون) | Discrete-event simulation |
+| القرار في حالة عدم التأكد: لابلاس، وماكسيمين، وماكسيماكس، وهورويتز، وسافاج (الندم الأدنى) | Laplace, maximin, maximax, Hurwicz, Savage |
+| القرار في حالة المخاطرة: القيمة النقدية المتوقعة، والخسارة المتوقعة، و**شجرة القرار**، وقيمة المعلومات الكاملة والعينية (بيز) | EMV, EOL, decision trees, EVPI, EVSI (Bayesian) |
+| نظرية المنفعة ودرجة تقبّل المخاطرة (المكافئ المؤكد) | Utility theory, certainty equivalent, risk attitude |
+| تطبيقات زراعية للمخاطر: MOTAD وTarget MOTAD، والمتوسط-التباين، وأمان أولاً (Safety-first)، والهيمنة العشوائية | MOTAD, Target MOTAD, E-V, safety-first, stochastic dominance |
+
+### 9.11 النماذج الديناميكية والاحتمالية — Dynamic & Stochastic Models
+| النموذج / الطريقة | Model / method |
+|---|---|
+| **سلاسل ماركوف**: مصفوفة الانتقال، والتنبؤ بالحالات، و**الحالة المستقرة**، والسلاسل الماصّة (متوسط زمن الامتصاص) | Markov chains: transitions, steady state, absorbing chains |
+| تطبيقات ماركوف: حصص السوق وولاء المستهلك، وتطور حجم المزارع، وحركة الحيازات | Market shares, brand loyalty, farm-size dynamics |
+| عمليات القرار الماركوفية (MDP): تكرار القيمة وتكرار السياسة | Markov decision processes |
+| **البرمجة الديناميكية**: الحقيبة، وتوزيع الموارد، وأقصر مسار متعدد المراحل، وجدولة المخزون والإنتاج، واستبدال المعدات | Dynamic programming: knapsack, resource allocation, staged shortest path, production–inventory, equipment replacement |
+| البرمجة الديناميكية العشوائية | Stochastic dynamic programming |
+| **البرمجة العشوائية**: النموذج ذو المرحلتين مع التعويض، والبرمجة بقيود احتمالية (Chance-constrained)، والمبنية على السيناريوهات، و**الأمثلية المتينة** (Robust optimization) | Two-stage recourse, chance-constrained, scenario-based, robust optimisation |
+| تطبيقات: التخطيط الزراعي في ظل عدم تأكد الأمطار والأسعار والمياه | Planning under rainfall, price & water uncertainty |
+
+### 9.12 نماذج تقييم الكفاءة والأداء — Efficiency & Performance
+| النموذج / الطريقة | Model / method |
+|---|---|
+| **تحليل مغلف البيانات DEA**: CCR وBCC (توجيه المدخلات والمخرجات)، وكفاءة الحجم ونوع العائد للسعة | DEA CCR / BCC, input/output orientation, scale efficiency, RTS |
+| النماذج المتقدمة: SBM (المعتمد على الفوائض)، والكفاءة الفائقة، والكفاءة التقاطعية، والمخرجات غير المرغوبة (التلوث) | SBM, super-efficiency, cross-efficiency, undesirable outputs |
+| كفاءة التكاليف والإيرادات والتخصيصية | Cost, revenue & allocative efficiency |
+| DEA عبر الزمن: **مؤشر مالمكويست** وتجزئته، وتحليل النافذة | Malmquist index, window analysis |
+| DEA الشبكي (متعدد المراحل) | Network DEA |
+| **DEA بالبوتستراب** (Simar-Wilson) لفترات الثقة، ثم تحليل المرحلة الثانية (توبيت، والانحدار المبتور) لمحددات الكفاءة | Bootstrap DEA, second-stage Tobit / truncated regression |
+| المقارنة المرجعية: الوحدات المرجعية (Peers) والقيم المستهدفة للتحسين | Benchmarking: peers & improvement targets |
+| تحليل الحدود العشوائية SFA (انظر 2.9) والمقارنة بين DEA وSFA | SFA cross-reference & DEA–SFA comparison |
+| مؤشرات الأداء المركبة وبطاقة الأداء المتوازن | Composite KPIs, balanced scorecard |
+
+### 9.13 الأنظمة المعقدة — Complex Systems
+| النموذج / الطريقة | Model / method |
+|---|---|
+| **ديناميكيات النظم** (System Dynamics): مخططات الحلقات السببية، ونماذج المخزون والتدفق، والمحاكاة عبر الزمن | Causal loop diagrams, stock-and-flow models, simulation |
+| اختبار السياسات بديناميكيات النظم: الأمن الغذائي، والمياه-الغذاء-الطاقة، والنمو السكاني، وسلاسل الإمداد (أثر السوط) | Food security, water–food–energy nexus, population, bullwhip effect |
+| تحليل الحساسية واختبار صحة النموذج (الظروف القصوى، وإعادة إنتاج السلوك التاريخي) | Sensitivity & validation tests |
+| **المحاكاة القائمة على الوكلاء** (Agent-Based Modelling): وكلاء بقواعد سلوك، وبيئة، وظهور السلوك الجمعي | Agents, rules, environment, emergence |
+| تطبيقات الوكلاء: انتشار تبني التكنولوجيا بين المزارعين، وأسواق السلع، واستخدام الأراضي، وانتشار الأوبئة، ونموذج شيلينج | Technology diffusion, commodity markets, land use, epidemics, Schelling |
+| تكرارات مونت كارلو لنماذج الوكلاء، وتحليل الحساسية للمعلمات | Monte Carlo replications, parameter sweeps |
+| تحليل الشبكات الاجتماعية والاقتصادية (المركزية، والمجتمعات)، والأوتوماتا الخلوية | Network analysis (centrality, communities), cellular automata |
 
 ## 10. محور تقييم المشروعات والتحليل المالي — Project Appraisal
 - صافي القيمة الحالية، ومعدل العائد الداخلي، ونسبة المنافع إلى التكاليف، وفترة الاسترداد · NPV, IRR, B/C, payback
@@ -287,7 +406,9 @@
 | v1.7 | محور التنبؤ الكامل |
 | v1.8 | بيانات البانل (الساكن والديناميكي وغير المتجانس) |
 | v1.9 | المتغير التابع المحدود + IV والمعادلات الآنية |
-| v2.0 | الكفاءة (DEA وSFA) + بحوث العمليات + تقييم المشروعات |
+| v2.0 | بحوث العمليات (1): البرمجة الخطية والصحيحة، والنقل والتخصيص، والشبكات وPERT/CPM، والمخزون وصفوف الانتظار + تقييم المشروعات |
+| v2.0.5 | بحوث العمليات (2): الأهداف وتعدد الأهداف، وMCDM، والكفاءة (DEA وSFA)، والمحاكاة وتحليل القرار |
+| v2.0.8 | بحوث العمليات (3): غير الخطية والعددية، ونظرية الألعاب، وماركوف والبرمجة الديناميكية والعشوائية، وديناميكيات النظم والوكلاء |
 | v2.1 | الأسواق والتجارة والكلي والتنمية (2.5–2.8) |
 | v2.2 | الاستدلال السببي، ومتعدد المتغيرات وSEM، والمكاني |
 | v2.3 | استوديو التقارير + مساعد الذكاء الاصطناعي + لوحة صانع القرار |
