@@ -17,7 +17,7 @@ A complete research workflow inside one integrated environment:
 
 ## Current Status
 
-- Version: `1.11.0-alpha`
+- Version: `1.12.0-alpha`
 - Live: https://aetheris-research.streamlit.app
 - Languages: English + Arabic (full RTL support)
 - ✅ Data Hub: file upload, World Bank WDI, FRED, Data Basket (multi-dataset memory + merge)
@@ -32,6 +32,7 @@ A complete research workflow inside one integrated environment:
 - ✅ **Forecasting Studio v1.9 (catalogue §3.1–3.4, §3.6):** a new wing with an automatic model horse-race (rolling-origin backtests, MASE / RMSE ranking, Diebold-Mariano tests, combination of the top three); benchmarks, ETS (R forecast::ets conventions), theta, ARIMA / SARIMAX with automatic order selection, structural state-space models, BSTS (Gibbs sampler) and growth curves; nowcasting with bridge equations, MIDAS (U-MIDAS, exponential Almon, beta, Almon) and a mixed-frequency dynamic factor model; Bayesian VAR (Minnesota / NIW prior with marginal-likelihood λ) and local projections; HAR-RV, GARCH / EWMA / historical-simulation VaR backtests (Kupiec, Christoffersen) and volatility-forecast comparison (QLIKE, Mincer-Zarnowitz); random forest, gradient boosting, LightGBM, SVR with conformal intervals and a Prophet-style model; forecast combinations (inverse-MSE, Bates-Granger, Granger-Ramanathan); fan charts and scenario forecasts for decision-makers. Validated against R forecast and stats::nls (`tests/test_r_crosscheck_v19.py`), the R BVAR package and independent base-R implementations of MIDAS, bridge equations and local projections (`tests/test_r_crosscheck_extra.py`); XGBoost, CatBoost and Meta's Prophet are integrated (machine-learning tab and horse-race); Stata checks added to `docs/validation/stata_check.do`.
 - ✅ **Applied Economics Lab v1.10 (catalogue §2.7–2.8):** a new wing with production functions (Cobb-Douglas, translog, CES, generalized Leontief, quadratic, transcendental, Leontief) and their economics (elasticities, RTS, Allen / Morishima substitution, stages of production, isoquants); yield response with the economic optimum rate; optimal input use (VMP = price); cubic and long-run cost, scale and scope economies; translog cost and profit systems by restricted iterated SUR; stochastic frontiers (half-normal, truncated, exponential, Battese-Coelli 1995 determinants, Battese-Coelli 1992 panel), meta-frontier, DEA and Malmquist; Olley-Pakes / Levinsohn-Petrin / ACF and Törnqvist / Fisher productivity; Nerlove supply response and cobweb; demand, Engel curves, LES, LA-AIDS, AIDS, QUAIDS and Rotterdam with exact welfare measures; consumption functions. Validated against R nls, systemfit and lpSolve (`tests/test_r_crosscheck_v110.py`) and independently coded R likelihoods for ALS, exponential, Battese-Coelli 1995 and 1992 frontiers (`tests/test_r_crosscheck_extra.py`); Stata checks (frontier, xtfrontier, quaids, prodest) added to `docs/validation/stata_check.do`.
 - ✅ **Impact, Spatial & Climate Lab v1.11 (catalogue §1.14, §1.16, §1.20, §1.26):** a new wing with quantile regression (quantile-process plots against OLS, journal tables, nid / iid / kernel / bootstrap SEs, Koenker-Bassett slope-equality tests, panel MMQR, cross-quantilogram); spatial econometrics (k-nearest / distance-band / inverse-distance weights, Moran's I and Geary's C, LISA cluster maps, LM and robust LM tests, OLS / SLX / SAR / SEM / SDM / SDEM / SAC by maximum likelihood with LeSage-Pace direct and spillover impacts and a spillover simulator, GWR with AICc bandwidth and local-coefficient maps, fixed-effects spatial panels); policy evaluation (RCTs with Neyman and Lin estimators, balance and heterogeneity, IV / LATE, 2×2 DiD, TWFE event studies, Callaway-Sant'Anna ATT(g,t) with all aggregations, Sun-Abraham, Goodman-Bacon decomposition, synthetic control with placebo inference, synthetic DiD, sharp and fuzzy RDD via rdrobust / rddensity, propensity-score matching, IPW and AIPW with balance and overlap diagnostics, cost-benefit scale-up simulations); climate economics (degree days and temperature bins from daily weather, GDD/KDD, bin and quadratic temperature-yield panels with warming scenarios, Ricardian analysis, Burke-Hsiang-Miguel damages with projections, an illustrative social cost of carbon, STIRPAT with ridge, emission projections, EKC turning points with delta and Fieller intervals, Tapio decoupling and LMDI Kaya decomposition). Validated against R quantreg, spdep, spatialreg, did, fixest, ivreg, MatchIt, WeightIt and Synth, PySAL mgwr (`tests/test_r_crosscheck_v111.py`) and `tests/test_v111.py`; Stata checks (qreg, xtqreg, spregress, ivregress, csdid, teffects, rdrobust, sdid, reghdfe) added to `docs/validation/stata_check.do`.
+- ✅ **Report Studio, AI Research Assistant and Decision Dashboard v1.12 (catalogue §8):** every analysis that offers a Word report in any wing is captured automatically (tables, charts, interpretations, references); the Report Studio assembles selected results into one report — title page, abstract, numbered sections, APA / journal tables and figures, a merged reference list — and exports Word, PDF (Arabic shaped with HarfBuzz), LaTeX (zip with figures), interactive HTML and Markdown, right-to-left or left-to-right. The AI assistant (Claude via the Anthropic API when `ANTHROPIC_API_KEY` is set; an offline mode otherwise) recommends models from the data structure and research goal, drafts methodology / results / discussion / abstracts / policy briefs only from computed results with a number checker that flags any figure not found in them, and answers methodological questions in Arabic from the platform's methodology library. The decision dashboard shows key findings in plain language, KPI cards, early-warning traffic lights (z-score, percentile, real-time HP gap, fixed thresholds) with a composite index, the Kaminsky-Lizondo-Reinhart signals approach, forecast-based breach probabilities and what-if scenarios. Tests: `tests/test_v112.py`.
 - Strategic plan: see [ROADMAP.md](ROADMAP.md) · Full model catalogue: [docs/MODEL_CATALOG.md](docs/MODEL_CATALOG.md)
 
 ## Project Structure
@@ -42,6 +43,7 @@ aetheris-research/
 ├── config/                    # Settings and language dictionary
 ├── core/
 │   ├── memory.py              # Smart Memory (multi-dataset library + active dataset)
+│   ├── report_store.py        # v1.12 automatic capture of results for the Report Studio
 │   └── utils.py               # i18n helpers, RTL styling, shared widgets
 ├── data/
 │   ├── engines/
@@ -98,6 +100,12 @@ aetheris-research/
 │   ├── climate.py             # v1.11 degree days, temperature response, Ricardian, BHM, SCC, STIRPAT, EKC, Tapio, LMDI
 │   ├── impact_report.py       # v1.11 methodology, references, Python / R / Stata code
 │   ├── impact_ui.py           # v1.11 Impact, Spatial & Climate Lab wing
+│   ├── report_studio.py       # v1.12 report assembly; Word / PDF / LaTeX / HTML / Markdown; number checker
+│   ├── reports_ui.py          # v1.12 Report Studio wing
+│   ├── ai_assistant.py        # v1.12 model advisor, grounded writer, Q&A (Claude or offline)
+│   ├── assistant_ui.py        # v1.12 AI Research Assistant wing
+│   ├── dashboard.py           # v1.12 KPIs, early-warning signals, KLR signals approach, scenarios
+│   ├── dashboard_ui.py        # v1.12 Decision Dashboard wing
 │   ├── charts.py              # Academic chart engine (17 chart types)
 │   └── chart_builder_ui.py    # Chart Builder
 ├── tests/                     # Unit tests (pytest)

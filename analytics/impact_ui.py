@@ -24,6 +24,13 @@ from core.utils import tr, is_ar, insight, excel_download
 PAL = ch.PALETTES["academic"]
 _disp, _code, _lang = tu._disp, tu._code, tu._lang
 fp = ir.fmt_p
+
+
+def fpe(p):
+    v = ir.fmt_p(p)
+    return v if v.startswith("<") else f"= {v}"
+
+
 tu._AR_COLS.update({
     "τ": "τ", "Variable": "المتغير", "Coef.": "المعامل", "Std. Err.": "الخطأ المعياري", "CI low": "الحد الأدنى", "CI high": "الحد الأعلى",
     "pseudo R¹": "R¹ الكاذب", "Wald": "والد", "df": "د.ح", "F": "F", "Location β": "الموقع β", "Scale γ": "المقياس γ",
@@ -295,9 +302,9 @@ def _quantile(df):
     ej = eq.iloc[-1]
     v0 = xs[0]
     lo, hi = wide.loc[v0, 0.1], wide.loc[v0, 0.9]
-    insight(tr(f"For {v0}, the effect is {lo:.4f} at the 10th and {hi:.4f} at the 90th percentile. Joint slope-equality test p = {fp(ej['p-value'])}: "
+    insight(tr(f"For {v0}, the effect is {lo:.4f} at the 10th and {hi:.4f} at the 90th percentile. Joint slope-equality test p {fpe(ej['p-value'])}: "
                + ("effects differ across the distribution — OLS hides heterogeneity." if ej["p-value"] < 0.05 else "no strong evidence that effects differ across quantiles."),
-               f"أثر {v0} يساوي {lo:.4f} عند المئين العاشر و{hi:.4f} عند المئين التسعين. اختبار تساوي الميول المشترك p = {fp(ej['p-value'])}: "
+               f"أثر {v0} يساوي {lo:.4f} عند المئين العاشر و{hi:.4f} عند المئين التسعين. اختبار تساوي الميول المشترك p {fpe(ej['p-value'])}: "
                + ("تختلف الآثار عبر التوزيع — يُخفي OLS عدم التجانس." if ej["p-value"] < 0.05 else "لا دليل قوي على اختلاف الآثار عبر الكميات.")))
     with st.expander(tr("🎯 Policy simulation: who gains from a change?", "🎯 محاكاة السياسة: من يستفيد من التغيير؟"), expanded=True):
         a, b = st.columns(2)
@@ -336,9 +343,9 @@ def _cq(df, num):
     _chart(fig, "cq_pl", "cross_quantilogram")
     _table(r, 4)
     ns = int(r.significant.sum())
-    insight(tr(f"{ns} of {L} lags are significant at 5%. Q({L}) p = {fp(r['p (Q)'].iloc[-1])}: " + ("tail events in the predictor help forecast tail events in x."
+    insight(tr(f"{ns} of {L} lags are significant at 5%. Q({L}) p {fpe(r['p (Q)'].iloc[-1])}: " + ("tail events in the predictor help forecast tail events in x."
                if r["p (Q)"].iloc[-1] < 0.05 else "no directional tail predictability."),
-               f"{ns} من {L} فجوات معنوية عند 5%. اختبار Q({L}) p = {fp(r['p (Q)'].iloc[-1])}: " + ("أحداث الأطراف في المتنبئ تساعد على التنبؤ بأحداث الأطراف في x."
+               f"{ns} من {L} فجوات معنوية عند 5%. اختبار Q({L}) p {fpe(r['p (Q)'].iloc[-1])}: " + ("أحداث الأطراف في المتنبئ تساعد على التنبؤ بأحداث الأطراف في x."
                if r["p (Q)"].iloc[-1] < 0.05 else "لا توجد قدرة تنبؤية اتجاهية في الأطراف.")))
     _finish("cq", "qn_cq", {"Cross-quantilogram": r}, tr("Cross-quantilogram", "مخطط الكميات المتقاطع"), [r])
 
@@ -626,8 +633,8 @@ def _rct_iv(df):
             st.markdown("**" + tr("Baseline balance", "التوازن عند خط الأساس") + "**")
             _table(r["balance"], 3)
             jf = r["joint F"]
-            st.caption(tr(f"Joint orthogonality F({jf['df1']}, {jf['df2']}) = {jf['F']:.3f}, p = {fp(jf['p-value'])}",
-                          f"اختبار التعامد المشترك F({jf['df1']}, {jf['df2']}) = {jf['F']:.3f}، p = {fp(jf['p-value'])}"))
+            st.caption(tr(f"Joint orthogonality F({jf['df1']}, {jf['df2']}) = {jf['F']:.3f}, p {fpe(jf['p-value'])}",
+                          f"اختبار التعامد المشترك F({jf['df1']}, {jf['df2']}) = {jf['F']:.3f}، p {fpe(jf['p-value'])}"))
         T = r["table"]
         fig = go.Figure(go.Scatter(x=T.Estimate, y=[_disp(pd.DataFrame({"c": [e]})).iloc[0, 0] for e in T.Estimator], mode="markers",
                                    marker=dict(size=12, color=PAL[0]), error_x=dict(type="data", symmetric=False, array=T["CI high"] - T.Estimate, arrayminus=T.Estimate - T["CI low"])))
@@ -637,7 +644,7 @@ def _rct_iv(df):
         best = T.iloc[-1]
         gain = 100 * (1 - T["Std. Err."].iloc[-1] / T["Std. Err."].iloc[0])
         insight(tr(f"Average effect = {best.Estimate:.4f} (95% CI {best['CI low']:.4f} to {best['CI high']:.4f}, p {fp(best['p-value'])}). "
-                   f"Covariate adjustment cut the standard error by {gain:.0f}%." + (f" Balance: joint p = {fp(r['joint F']['p-value'])} — randomisation looks successful."
+                   f"Covariate adjustment cut the standard error by {gain:.0f}%." + (f" Balance: joint p {fpe(r['joint F']['p-value'])} — randomisation looks successful."
                    if "joint F" in r and r["joint F"]["p-value"] > 0.05 else ""),
                    f"متوسط الأثر = {best.Estimate:.4f} (فترة ثقة 95%: {best['CI low']:.4f} إلى {best['CI high']:.4f}، p {fp(best['p-value'])}). "
                    f"خفّض التعديل بالمتغيرات الخطأ المعياري بنسبة {gain:.0f}%." + (f" التوازن: p المشترك = {fp(r['joint F']['p-value'])} — يبدو التوزيع العشوائي ناجحاً."
@@ -649,7 +656,7 @@ def _rct_iv(df):
             H = cz.rct_heterogeneity(df, y, t, het)
             _table(H.drop(columns=[""]), 4)
             it = H.attrs["interaction test"]
-            st.caption(tr(f"Interaction Wald test: χ²({it['df']}) = {it['Wald']:.3f}, p = {fp(it['p-value'])}", f"اختبار والد للتفاعل: χ²({it['df']}) = {it['Wald']:.3f}، p = {fp(it['p-value'])}"))
+            st.caption(tr(f"Interaction Wald test: χ²({it['df']}) = {it['Wald']:.3f}, p {fpe(it['p-value'])}", f"اختبار والد للتفاعل: χ²({it['df']}) = {it['Wald']:.3f}، p {fpe(it['p-value'])}"))
             sheets["Heterogeneity"] = H
         _cba(best.Estimate, best["Std. Err."], "rc")
         _finish("rct", "pe_rct", sheets, tr("Randomised controlled trial", "التجربة العشوائية المضبوطة"), [T] + ([r["balance"]] if "balance" in r else []),
@@ -680,7 +687,7 @@ def _rct_iv(df):
         cs_ = r["Wald"]["Complier share (first stage)"]
         msg += tr(f" {100 * cs_:.0f}% of those offered complied; the effect applies to these compliers.", f" امتثل {100 * cs_:.0f}% ممن عُرضت عليهم المعالجة؛ ويخص الأثر هؤلاء الممتثلين.")
     if "endogeneity test" in r:
-        msg += tr(f" Endogeneity test p = {fp(r['endogeneity test']['p-value'])}.", f" اختبار الداخلية p = {fp(r['endogeneity test']['p-value'])}.")
+        msg += tr(f" Endogeneity test p {fpe(r['endogeneity test']['p-value'])}.", f" اختبار الداخلية p {fpe(r['endogeneity test']['p-value'])}.")
     insight(msg)
     _cba(r["late"], r["late se"], "iv")
     _finish("iv", "pe_iv", {"2SLS": r["table"], "First stage": r["first stage"], "Reduced form": r["reduced form"]}, tr("Instrumental variables", "المتغيرات الأداتية"),
@@ -773,10 +780,10 @@ def _did(df):
     pt = cs["pretrend"]
     forb = bw[bw.Comparison.str.startswith("Later")].Weight.sum()
     insight(tr(f"Overall ATT = {s0.ATT:.4f} (SE {s0['Std. Err.']:.4f}, p {fp(s0['p-value'])})." +
-               (f" Pre-trend Wald test p = {fp(pt['p-value'])}: " + ("parallel trends are not rejected." if pt["p-value"] > 0.05 else "⚠️ parallel trends are doubtful.") if pt else "") +
+               (f" Pre-trend Wald test p {fpe(pt['p-value'])}: " + ("parallel trends are not rejected." if pt["p-value"] > 0.05 else "⚠️ parallel trends are doubtful.") if pt else "") +
                f" Sun-Abraham ATT = {sa['att']['Estimate']:.4f}. 'Forbidden' comparisons carry {100 * forb:.0f}% of the static TWFE weight (TWFE estimate {bw.attrs['weighted sum']:.4f}).",
                f"متوسط الأثر الكلي = {s0.ATT:.4f} (خطأ {s0['Std. Err.']:.4f}، p {fp(s0['p-value'])})." +
-               (f" اختبار والد للاتجاهات السابقة p = {fp(pt['p-value'])}: " + ("لا يُرفض فرض الاتجاهات المتوازية." if pt["p-value"] > 0.05 else "⚠️ فرض الاتجاهات المتوازية موضع شك.") if pt else "") +
+               (f" اختبار والد للاتجاهات السابقة p {fpe(pt['p-value'])}: " + ("لا يُرفض فرض الاتجاهات المتوازية." if pt["p-value"] > 0.05 else "⚠️ فرض الاتجاهات المتوازية موضع شك.") if pt else "") +
                f" تقدير سن-أبراهام = {sa['att']['Estimate']:.4f}. تحمل المقارنات «الممنوعة» {100 * forb:.0f}% من وزن TWFE الساكن (تقديره {bw.attrs['weighted sum']:.4f})."))
     with st.expander(tr("🎯 Policy simulation: extending the reform", "🎯 محاكاة السياسة: تعميم الإصلاح"), expanded=False):
         nu = int((df.groupby(u)[g].first() == 0).sum())
@@ -935,8 +942,8 @@ def _rdd(df):
             _table(r["covariates"], 4)
         if r["density test"]:
             dt = r["density test"]
-            st.caption(tr(f"Manipulation test (rddensity): T = {dt['T (jackknife)']:.3f}, p = {fp(dt['p-value'])}",
-                          f"اختبار التلاعب (rddensity): T = {dt['T (jackknife)']:.3f}، p = {fp(dt['p-value'])}"))
+            st.caption(tr(f"Manipulation test (rddensity): T = {dt['T (jackknife)']:.3f}, p {fpe(dt['p-value'])}",
+                          f"اختبار التلاعب (rddensity): T = {dt['T (jackknife)']:.3f}، p {fpe(dt['p-value'])}"))
     rb = r["table"].iloc[2]
     cv = r["table"].iloc[0]
     msg = tr(f"Jump at the cutoff = {cv.Estimate:.4f}; robust 95% CI {rb['CI low']:.4f} to {rb['CI high']:.4f} (p {fp(rb['p-value'])}).",

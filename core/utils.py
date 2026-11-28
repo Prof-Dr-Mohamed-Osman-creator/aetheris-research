@@ -85,6 +85,11 @@ def inject_custom_css():
 def insight(text: str):
     """Render an interpretation box (academic-style reading of results)."""
     st.markdown(f"<div class='insight-box'>{text}</div>", unsafe_allow_html=True)
+    try:   # v1.12: interpretations travel with the analysis into the Report Studio
+        from core.report_store import capture_insight
+        capture_insight(text)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def csv_download(df, file_name: str, label: str | None = None, key: str | None = None):

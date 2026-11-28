@@ -25,6 +25,9 @@ st.set_page_config(
 if LANGUAGE_KEY not in st.session_state:
     st.session_state[LANGUAGE_KEY] = DEFAULT_LANGUAGE
 init_memory()
+from core import report_store as _rs  # noqa: E402  (v1.12 result capture for the Report Studio)
+_rs.install_hooks()
+_rs.new_run()
 
 LANG_OPTIONS = {"en": "English", "ar": "العربية"}
 
@@ -34,9 +37,9 @@ def _on_lang_change():
 
 
 WINGS = ["home", "data_hub", "descriptive", "inferential", "econometrics", "forecasting", "applied", "impact",
-         "operations", "reports", "academy", "community"]
+         "reports", "assistant", "dashboard", "operations", "academy", "community"]
 WING_ICONS = {"home": "🏠", "data_hub": "📥", "descriptive": "📋", "inferential": "🧪",
-              "econometrics": "📐", "forecasting": "🔮", "applied": "🌾", "impact": "🧭", "operations": "⚙️", "reports": "📄", "academy": "🎓", "community": "💬"}
+              "econometrics": "📐", "forecasting": "🔮", "applied": "🌾", "impact": "🧭", "assistant": "🤖", "dashboard": "🏛️", "operations": "⚙️", "reports": "📄", "academy": "🎓", "community": "💬"}
 
 # ------------------------------------------
 # Sidebar - Language + Navigation
@@ -145,9 +148,21 @@ if page == "home":
         ("⚙️", tr("Operations Research", "بحوث العمليات"),
          tr("Linear programming, transportation, efficiency (DEA) — in development.",
             "البرمجة الخطية، ومسائل النقل، وتحليل الكفاءة (DEA) — قيد التطوير.")),
-        ("📄", tr("Report Studio + AI", "استوديو التقارير + الذكاء الاصطناعي"),
-         tr("AI-assisted academic reports in Arabic & English (in development).",
-            "تقارير أكاديمية بالعربية والإنجليزية بمساعدة الذكاء الاصطناعي (قيد التطوير).")),
+        ("📄", tr("Report Studio", "استوديو التقارير"),
+         tr("Every analysis is captured with its tables, charts, interpretation and references; arrange them into one report with numbered APA tables "
+            "and figures and export to Word, PDF, LaTeX, HTML or Markdown — in Arabic (RTL) or English.",
+            "كل تحليل يُلتقط بجداوله ورسومه وتفسيره ومراجعه؛ رتّبها في تقرير واحد بجداول وأشكال مرقمة بنمط APA وصدّره إلى Word وPDF وLaTeX "
+            "وHTML وMarkdown — بالعربية (من اليمين لليسار) أو الإنجليزية.")),
+        ("🤖", tr("AI Research Assistant", "المساعد البحثي الذكي"),
+         tr("Suggests the model for your question and data, drafts methodology, results, discussion, abstracts and policy briefs only from the computed "
+            "numbers (every number is checked), and answers methodological questions in Arabic — with an offline mode.",
+            "يقترح النموذج المناسب لسؤالك وبياناتك، ويصوغ المنهجية والنتائج والمناقشة والملخص وموجز السياسات من الأرقام المحسوبة فقط (مع فحص كل "
+            "رقم)، ويجيب عن الأسئلة المنهجية بالعربية — مع وضع يعمل دون اتصال.")),
+        ("🏛️", tr("Decision Dashboard", "لوحة صانع القرار"),
+         tr("Key findings in plain language, KPI cards, early-warning traffic lights with a composite index, the signals approach for crisis prediction, "
+            "forecast-based breach probabilities and what-if scenarios.",
+            "أهم النتائج بلغة مبسطة، وبطاقات المؤشرات، وأضواء الإنذار المبكر مع مؤشر مركب، ومنهج الإشارات للتنبؤ بالأزمات، واحتمالات تجاوز العتبات "
+            "من التنبؤ، وسيناريوهات «ماذا لو».")),
         ("🎓", tr("Academy", "الأكاديمية"),
          tr("Courses, guided exercises and certificates in statistics & econometrics (planned).",
             "دورات وتمارين موجّهة وشهادات في الإحصاء والاقتصاد القياسي (مخطط لها).")),
@@ -229,8 +244,18 @@ elif page == "operations":
 
 elif page == "reports":
     st.header(t("reports"))
-    _coming_soon("Report Studio with AI writing assistant (Word/PDF export, APA tables) — in development.",
-                 "استوديو التقارير مع مساعد كتابة بالذكاء الاصطناعي (تصدير Word وPDF وجداول بنمط APA) — قيد التطوير.")
+    from analytics.reports_ui import render_reports
+    render_reports()
+
+elif page == "assistant":
+    st.header(t("assistant"))
+    from analytics.assistant_ui import render_assistant
+    render_assistant()
+
+elif page == "dashboard":
+    st.header(t("dashboard"))
+    from analytics.dashboard_ui import render_dashboard
+    render_dashboard()
 
 elif page == "academy":
     st.header(t("academy"))

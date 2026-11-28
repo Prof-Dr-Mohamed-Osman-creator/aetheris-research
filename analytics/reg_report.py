@@ -342,6 +342,11 @@ def _num_df(df: pd.DataFrame, d=4) -> pd.DataFrame:
 
 def to_docx(sections: list, title: str, rtl: bool = False) -> bytes:
     """Build a Word report. sections = [("h", text) | ("p", text) | ("table", DataFrame) | ("note", text)]."""
+    try:   # v1.12: every analysis that offers a Word report is registered for the Report Studio
+        from core.report_store import capture_sections
+        capture_sections(title, sections)
+    except Exception:  # noqa: BLE001
+        pass
     from docx import Document
     from docx.shared import Pt
     doc = Document()
