@@ -416,6 +416,145 @@ def v110_blocks():
     return ["\n".join(L)]
 
 
+def v111_blocks():
+    """v1.11 — quantile regression (qreg, xtqreg), spatial ML (spregress), policy evaluation (ivregress, csdid,
+    teffects, rdrobust, sdid) and climate panels (reghdfe)."""
+    import numpy as np
+    import pandas as pd
+    from analytics import causal as C
+    from analytics import climate as K
+    from analytics import quantile as Q
+    from analytics import spatial as S
+    from data import samples as smp
+    L = [f"\n* {'=' * 70}\n* v1.11 — quantile, spatial, policy evaluation, climate\n* {'=' * 70}",
+         "* (user-written commands are installed on demand; checks whose names differ across versions use capture noisily)"]
+    # quantile regression on the farm survey (coefficients are LP solutions: exact)
+    farm = farm_survey_demo()
+    farm = farm.assign(ly=np.log(farm.output_tonnes), ll=np.log(farm.labour_days), lf=np.log(farm.fertilizer_kg))
+    X = np.column_stack([np.ones(len(farm)), farm[["ll", "lf", "education_years"]].to_numpy()])
+    L += [f'import delimited "{CSV}", clear varnames(1) case(preserve)', "gen ly = ln(output_tonnes)", "gen ll = ln(labour_days)", "gen lf = ln(fertilizer_kg)"]
+    for tau in (0.25, 0.5, 0.75):
+        b = Q.qr_fit(farm.ly.to_numpy(), X, tau, "iid")["b"]
+        L.append(f"quietly qreg ly ll lf education_years, quantile({tau})")
+        for nm, v in zip(["_cons", "ll", "lf", "education_years"], b):
+            L.append(f'chk "qreg q{int(tau * 100)} b[{nm}]" _b[{nm}] {float(v)!r} 1e-5')
+    # MMQR (xtqreg) on the spatial panel
+    P = smp.spatial_panel_demo()
+    P.to_csv(OUT / "v111_panel.csv", index=False)
+    mm = Q.mmqr(P, "district", "ln_yield", ["ln_fertilizer", "rainfall_anomaly"], taus=(0.25, 0.75), boot=0)
+    L += ['import delimited "v111_panel.csv", clear varnames(1) case(preserve)', "encode district, gen(did)", "xtset did year",
+          "capture which xtqreg", "if _rc ssc install xtqreg"]
+    T = mm["table"]
+    for tau in (0.25, 0.75):
+        L.append(f"capture noisily xtqreg ln_yield ln_fertilizer rainfall_anomaly, i(did) quantile({tau})")
+        for v in ("ln_fertilizer", "rainfall_anomaly"):
+            val = T[(T["τ"] == tau) & (T.Variable == v)]["Coef."].iloc[0]
+            L.append(f'capture noisily chk "xtqreg q{int(tau * 100)} b[{v}]" _b[{v}] {float(val)!r} 1e-4')
+    # spatial ML
+    D = smp.spatial_districts_demo()
+    D["ln_dist"] = np.log(D.distance_market_km)
+    D["sid"] = np.arange(1, len(D) + 1)
+    D.to_csv(OUT / "v111_districts.csv", index=False)
+    W = S.weights(D[["longitude", "latitude"]].values, "knn", 6)
+    with open(OUT / "v111_W.txt", "w") as fh:
+        fh.write(f"{len(W)}\n")
+        for i, row in enumerate(W):
+            fh.write(f"{i + 1} " + " ".join(f"{v:.17g}" for v in row) + "\n")
+    x = ["irrigation_share", "ln_dist", "soil_index", "avg_temp_c"]
+    L += ['import delimited "v111_districts.csv", clear varnames(1) case(preserve)', "spset sid", "capture spmatrix drop W",
+          "spmatrix import W using v111_W.txt"]
+    for mdl, opt, par in (("sar", "dvarlag(W)", "rho"), ("sem", "errorlag(W)", "lambda")):
+        r = S.spatial_model(D, "ln_land_value", x, W, mdl, 10)
+        L.append(f"capture noisily spregress ln_land_value {' '.join(x)}, ml {opt}")
+        for nm, v in zip(["_cons"] + x, r["est"][:1 + len(x)]):
+            L.append(f'capture noisily chk "spregress {mdl} b[{nm}]" [ln_land_value]_b[{nm}] {float(v)!r} 1e-5')
+        eq = "[W]_b[ln_land_value]" if mdl == "sar" else "[W]_b[e.ln_land_value]"
+        L.append(f'capture noisily chk "spregress {mdl} {par}" {eq} {float(r[par])!r} 1e-5')
+        L.append(f'capture noisily chk "spregress {mdl} log L" e(ll) {r["loglik"]!r} 1e-6')
+    # IV / LATE and RCT
+    R = smp.rct_extension_demo()
+    R.to_csv(OUT / "v111_rct.csv", index=False)
+    iv = C.iv_2sls(R, "ln_yield", "participated", ["treatment_offered"])
+    rc = C.rct(R, "ln_yield", "treatment_offered")
+    L += ['import delimited "v111_rct.csv", clear varnames(1) case(preserve)', "quietly ivregress 2sls ln_yield (participated = treatment_offered), vce(robust)",
+          f'chk "ivregress b[participated]" _b[participated] {iv["late"]!r} 1e-8', f'chk "ivregress se[participated]" _se[participated] {iv["late se"]!r} 1e-4',
+          "quietly regress ln_yield treatment_offered, vce(hc2)",
+          f'chk "RCT difference in means" _b[treatment_offered] {float(rc["table"].Estimate[0])!r} 1e-8',
+          f'chk "RCT HC2 se" _se[treatment_offered] {float(rc["table"]["Std. Err."][0])!r} 1e-6']
+    # staggered DiD (csdid, analytical SEs, never-treated controls)
+    st_ = smp.staggered_did_demo()
+    st_["vid"] = pd.factorize(st_.village)[0] + 1
+    st_.to_csv(OUT / "v111_did.csv", index=False)
+    cs = C.callaway_santanna(st_, "village", "year", "ln_water_productivity", "first_treated")
+    L += ['import delimited "v111_did.csv", clear varnames(1) case(preserve)', "capture which csdid", "if _rc ssc install csdid", "capture which drdid",
+          "if _rc ssc install drdid", "capture noisily csdid ln_water_productivity, ivar(vid) time(year) gvar(first_treated)", "capture noisily estat simple",
+          f'capture noisily chk "csdid simple ATT" el(r(table),1,1) {float(cs["summary"].ATT[0])!r} 1e-6',
+          f'capture noisily chk "csdid simple se" el(r(table),2,1) {float(cs["summary"]["Std. Err."][0])!r} 1e-3']
+    # propensity-score methods
+    cr = smp.credit_program_demo()
+    cr.to_csv(OUT / "v111_credit.csv", index=False)
+    covs = ["age", "education_years", "land_feddan", "female_head", "distance_branch_km"]
+    m = C.psm(cr, "ln_income", "participant", covs)
+    w = C.ipw_aipw(cr, "ln_income", "participant", covs, "ATE")
+    L += ['import delimited "v111_credit.csv", clear varnames(1) case(preserve)',
+          f"capture noisily teffects psmatch (ln_income) (participant {' '.join(covs)}), atet nneighbor(1)",
+          f'capture noisily chk "teffects psmatch ATET" _b[ATET:r1vs0.participant] {m["estimate"]["Estimate"]!r} 1e-6',
+          f"capture noisily teffects ipw (ln_income) (participant {' '.join(covs)}), ate",
+          f'capture noisily chk "teffects ipw ATE" _b[ATE:r1vs0.participant] {float(w["table"].Estimate[0])!r} 1e-6',
+          f'capture noisily chk "teffects ipw se" _se[ATE:r1vs0.participant] {float(w["table"]["Std. Err."][0])!r} 1e-3',
+          f"capture noisily teffects aipw (ln_income {' '.join(covs)}) (participant {' '.join(covs)}), ate",
+          f'capture noisily chk "teffects aipw ATE" _b[ATE:r1vs0.participant] {float(w["table"].Estimate[1])!r} 1e-6',
+          f'capture noisily chk "teffects aipw se" _se[ATE:r1vs0.participant] {float(w["table"]["Std. Err."][1])!r} 1e-3']
+    # regression discontinuity (rdrobust Stata = the same algorithm as the Python package)
+    rd = smp.rdd_scholarship_demo()
+    rd.to_csv(OUT / "v111_rdd.csv", index=False)
+    r = C.rdd(rd, "gpa", "entrance_score", 60)
+    L += ['import delimited "v111_rdd.csv", clear varnames(1) case(preserve)', "capture which rdrobust",
+          "if _rc net install rdrobust, from(https://raw.githubusercontent.com/rdpackages/rdrobust/master/stata) replace",
+          "capture noisily rdrobust gpa entrance_score, c(60)",
+          f'capture noisily chk "rdrobust conventional" e(tau_cl) {float(r["table"].Estimate[0])!r} 1e-5',
+          f'capture noisily chk "rdrobust bias-corrected" e(tau_bc) {float(r["table"].Estimate[1])!r} 1e-5',
+          f'capture noisily chk "rdrobust robust se" e(se_tau_rb) {float(r["table"]["Std. Err."][2])!r} 1e-5',
+          f'capture noisily chk "rdrobust h" e(h_l) {r["h"]!r} 1e-5']
+    # synthetic DiD (sdid, Clarke et al.: the synthdid algorithm)
+    sc = smp.scm_regions_demo()
+    sc["treated"] = ((sc.region == "Sinai Coast") & (sc.year >= 2012)).astype(int)
+    sc.to_csv(OUT / "v111_scm.csv", index=False)
+    sd = C.synth_did(sc, "region", "year", "ln_gdp_pc", "treated", reps=20)
+    L += ['import delimited "v111_scm.csv", clear varnames(1) case(preserve)', "capture which sdid", "if _rc ssc install sdid",
+          "capture noisily sdid ln_gdp_pc region year treated, vce(placebo) reps(50) seed(1)",
+          f'capture noisily chk "sdid ATT" e(ATT) {sd["ATT"]!r} 1e-5']
+    # climate panels (reghdfe = fixest conventions up to the redundant-FE count: SEs to ~1e-3)
+    cp = smp.crop_climate_panel_demo()
+    cp.to_csv(OUT / "v111_crop.csv", index=False)
+    t_ = K.temp_response(cp, "district", "year", "ln_yield", "gddkdd", gdd="gdd", kdd="kdd", precip="precip_mm")
+    L += ['import delimited "v111_crop.csv", clear varnames(1) case(preserve)', "encode district, gen(did)", "gen p2 = precip_mm^2",
+          "capture which reghdfe", "if _rc ssc install reghdfe", "capture which ftools", "if _rc ssc install ftools",
+          "capture noisily reghdfe ln_yield gdd kdd precip_mm p2, absorb(did year) vce(cluster did)"]
+    for nm, (b, se) in zip(["gdd", "kdd", "precip_mm", "p2"], t_["table"][["Estimate", "Std. Err."]].to_numpy()):
+        L.append(f'capture noisily chk "GDD/KDD b[{nm}]" _b[{nm}] {float(b)!r} 1e-6')
+        L.append(f'capture noisily chk "GDD/KDD se[{nm}]" _se[{nm}] {float(se)!r} 1e-3')
+    rdm = smp.ricardian_demo()
+    rdm.to_csv(OUT / "v111_ricardian.csv", index=False)
+    cl_ = ["temp_winter", "temp_summer", "precip_winter", "precip_summer"]
+    ri = K.ricardian(rdm, "land_value_k_egp", cl_, ["soil_quality", "distance_city_km", "irrigated"])
+    L += ['import delimited "v111_ricardian.csv", clear varnames(1) case(preserve)', "gen lv = ln(land_value_k_egp)"] + [f"gen {v}2 = {v}^2" for v in cl_]
+    L.append("quietly regress lv " + " ".join(f"{v} {v}2" for v in cl_) + " soil_quality distance_city_km irrigated, vce(robust)")
+    names = ["_cons"] + [n for v in cl_ for n in (v, f"{v}2")] + ["soil_quality", "distance_city_km", "irrigated"]
+    for nm, (b, se) in zip(names, ri["table"][["Estimate", "Std. Err."]].to_numpy()):
+        L.append(f'chk "Ricardian b[{nm}]" _b[{nm}] {float(b)!r} 1e-6')
+        L.append(f'chk "Ricardian se[{nm}]" _se[{nm}] {float(se)!r} 1e-6')
+    ce = smp.country_emissions_demo()
+    ce.to_csv(OUT / "v111_emissions.csv", index=False)
+    e = K.ekc(ce, "country", "year", "co2_mt", "gdp_pc_usd", per_capita="population")
+    L += ['import delimited "v111_emissions.csv", clear varnames(1) case(preserve)', "encode country, gen(cid)", "gen lpc = ln(co2_mt/population)",
+          "gen ly = ln(gdp_pc_usd)", "gen ly2 = ly^2", "capture noisily reghdfe lpc ly ly2, absorb(cid year) vce(cluster cid)",
+          f'capture noisily chk "EKC b[ly]" _b[ly] {float(e["b"][0])!r} 1e-6', f'capture noisily chk "EKC b[ly2]" _b[ly2] {float(e["b"][1])!r} 1e-6',
+          'capture noisily nlcom exp(-_b[ly]/(2*_b[ly2]))', f'capture noisily chk "EKC turning point" el(r(b),1,1) {e["turning point"]!r} 1e-6']
+    del np
+    return ["\n".join(L)]
+
+
 def main():
     farm = farm_survey_demo()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -472,6 +611,7 @@ def main():
     parts += v18_blocks()
     parts += v19_blocks()
     parts += v110_blocks()
+    parts += v111_blocks()
     parts += ['\ndisplay _n "Total failures: $fails"',
               'if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."']
     (OUT / "stata_check.do").write_text("\n".join(parts) + "\n", encoding="utf-8")

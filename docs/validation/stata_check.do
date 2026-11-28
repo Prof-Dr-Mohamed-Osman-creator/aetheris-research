@@ -801,5 +801,155 @@ capture noisily chk "QUAIDS beta3" _b[beta:beta_3] 0.015755305333355868 2e-2
 capture noisily chk "QUAIDS beta4" _b[beta:beta_4] -0.0011134336635803266 2e-2
 capture noisily chk "QUAIDS beta5" _b[beta:beta_5] 0.0011321549104420826 2e-2
 
+* ======================================================================
+* v1.11 — quantile, spatial, policy evaluation, climate
+* ======================================================================
+* (user-written commands are installed on demand; checks whose names differ across versions use capture noisily)
+import delimited "farm_survey_demo.csv", clear varnames(1) case(preserve)
+gen ly = ln(output_tonnes)
+gen ll = ln(labour_days)
+gen lf = ln(fertilizer_kg)
+quietly qreg ly ll lf education_years, quantile(0.25)
+chk "qreg q25 b[_cons]" _b[_cons] -0.33672402399202306 1e-5
+chk "qreg q25 b[ll]" _b[ll] 0.3872080375281942 1e-5
+chk "qreg q25 b[lf]" _b[lf] 0.4400019244933508 1e-5
+chk "qreg q25 b[education_years]" _b[education_years] 0.010217109192685227 1e-5
+quietly qreg ly ll lf education_years, quantile(0.5)
+chk "qreg q50 b[_cons]" _b[_cons] -0.38528291599552 1e-5
+chk "qreg q50 b[ll]" _b[ll] 0.40522856129998014 1e-5
+chk "qreg q50 b[lf]" _b[lf] 0.45691618991290933 1e-5
+chk "qreg q50 b[education_years]" _b[education_years] 0.013352399487822898 1e-5
+quietly qreg ly ll lf education_years, quantile(0.75)
+chk "qreg q75 b[_cons]" _b[_cons] -0.3034681036559638 1e-5
+chk "qreg q75 b[ll]" _b[ll] 0.4523415699367914 1e-5
+chk "qreg q75 b[lf]" _b[lf] 0.43286127770653016 1e-5
+chk "qreg q75 b[education_years]" _b[education_years] 0.011876416719851223 1e-5
+import delimited "v111_panel.csv", clear varnames(1) case(preserve)
+encode district, gen(did)
+xtset did year
+capture which xtqreg
+if _rc ssc install xtqreg
+capture noisily xtqreg ln_yield ln_fertilizer rainfall_anomaly, i(did) quantile(0.25)
+capture noisily chk "xtqreg q25 b[ln_fertilizer]" _b[ln_fertilizer] 0.389583411794602 1e-4
+capture noisily chk "xtqreg q25 b[rainfall_anomaly]" _b[rainfall_anomaly] 0.08631852347361844 1e-4
+capture noisily xtqreg ln_yield ln_fertilizer rainfall_anomaly, i(did) quantile(0.75)
+capture noisily chk "xtqreg q75 b[ln_fertilizer]" _b[ln_fertilizer] 0.3995275272963355 1e-4
+capture noisily chk "xtqreg q75 b[rainfall_anomaly]" _b[rainfall_anomaly] 0.08732167408957967 1e-4
+import delimited "v111_districts.csv", clear varnames(1) case(preserve)
+spset sid
+capture spmatrix drop W
+spmatrix import W using v111_W.txt
+capture noisily spregress ln_land_value irrigation_share ln_dist soil_index avg_temp_c, ml dvarlag(W)
+capture noisily chk "spregress sar b[_cons]" [ln_land_value]_b[_cons] 4.943968444757173 1e-5
+capture noisily chk "spregress sar b[irrigation_share]" [ln_land_value]_b[irrigation_share] 1.1664341461925813 1e-5
+capture noisily chk "spregress sar b[ln_dist]" [ln_land_value]_b[ln_dist] -0.2314300514303839 1e-5
+capture noisily chk "spregress sar b[soil_index]" [ln_land_value]_b[soil_index] 0.12221995273270936 1e-5
+capture noisily chk "spregress sar b[avg_temp_c]" [ln_land_value]_b[avg_temp_c] -0.07141311000681909 1e-5
+capture noisily chk "spregress sar rho" [W]_b[ln_land_value] 0.4689799100078462 1e-5
+capture noisily chk "spregress sar log L" e(ll) -4.995327609721185 1e-6
+capture noisily spregress ln_land_value irrigation_share ln_dist soil_index avg_temp_c, ml errorlag(W)
+capture noisily chk "spregress sem b[_cons]" [ln_land_value]_b[_cons] 9.794049194996951 1e-5
+capture noisily chk "spregress sem b[irrigation_share]" [ln_land_value]_b[irrigation_share] 1.3731924384392322 1e-5
+capture noisily chk "spregress sem b[ln_dist]" [ln_land_value]_b[ln_dist] -0.20780017593820788 1e-5
+capture noisily chk "spregress sem b[soil_index]" [ln_land_value]_b[soil_index] 0.1040041331564599 1e-5
+capture noisily chk "spregress sem b[avg_temp_c]" [ln_land_value]_b[avg_temp_c] -0.16462760667430243 1e-5
+capture noisily chk "spregress sem lambda" [W]_b[e.ln_land_value] 0.43677116306112906 1e-5
+capture noisily chk "spregress sem log L" e(ll) -17.818652195669657 1e-6
+import delimited "v111_rct.csv", clear varnames(1) case(preserve)
+quietly ivregress 2sls ln_yield (participated = treatment_offered), vce(robust)
+chk "ivregress b[participated]" _b[participated] 0.110808040839279 1e-8
+chk "ivregress se[participated]" _se[participated] 0.01973897029448647 1e-4
+quietly regress ln_yield treatment_offered, vce(hc2)
+chk "RCT difference in means" _b[treatment_offered] 0.09378910969197134 1e-8
+chk "RCT HC2 se" _se[treatment_offered] 0.016770694879701144 1e-6
+import delimited "v111_did.csv", clear varnames(1) case(preserve)
+capture which csdid
+if _rc ssc install csdid
+capture which drdid
+if _rc ssc install drdid
+capture noisily csdid ln_water_productivity, ivar(vid) time(year) gvar(first_treated)
+capture noisily estat simple
+capture noisily chk "csdid simple ATT" el(r(table),1,1) 0.17459980536494069 1e-6
+capture noisily chk "csdid simple se" el(r(table),2,1) 0.010470299906123779 1e-3
+import delimited "v111_credit.csv", clear varnames(1) case(preserve)
+capture noisily teffects psmatch (ln_income) (participant age education_years land_feddan female_head distance_branch_km), atet nneighbor(1)
+capture noisily chk "teffects psmatch ATET" _b[ATET:r1vs0.participant] 0.13392881355932204 1e-6
+capture noisily teffects ipw (ln_income) (participant age education_years land_feddan female_head distance_branch_km), ate
+capture noisily chk "teffects ipw ATE" _b[ATE:r1vs0.participant] 0.12147755937133908 1e-6
+capture noisily chk "teffects ipw se" _se[ATE:r1vs0.participant] 0.015116801437866164 1e-3
+capture noisily teffects aipw (ln_income age education_years land_feddan female_head distance_branch_km) (participant age education_years land_feddan female_head distance_branch_km), ate
+capture noisily chk "teffects aipw ATE" _b[ATE:r1vs0.participant] 0.12240232250995224 1e-6
+capture noisily chk "teffects aipw se" _se[ATE:r1vs0.participant] 0.014994470364413792 1e-3
+import delimited "v111_rdd.csv", clear varnames(1) case(preserve)
+capture which rdrobust
+if _rc net install rdrobust, from(https://raw.githubusercontent.com/rdpackages/rdrobust/master/stata) replace
+capture noisily rdrobust gpa entrance_score, c(60)
+capture noisily chk "rdrobust conventional" e(tau_cl) 0.2622008859112621 1e-5
+capture noisily chk "rdrobust bias-corrected" e(tau_bc) 0.2765385826865736 1e-5
+capture noisily chk "rdrobust robust se" e(se_tau_rb) 0.046285472390333524 1e-5
+capture noisily chk "rdrobust h" e(h_l) 8.505907524561408 1e-5
+import delimited "v111_scm.csv", clear varnames(1) case(preserve)
+capture which sdid
+if _rc ssc install sdid
+capture noisily sdid ln_gdp_pc region year treated, vce(placebo) reps(50) seed(1)
+capture noisily chk "sdid ATT" e(ATT) 0.11300429316448138 1e-5
+import delimited "v111_crop.csv", clear varnames(1) case(preserve)
+encode district, gen(did)
+gen p2 = precip_mm^2
+capture which reghdfe
+if _rc ssc install reghdfe
+capture which ftools
+if _rc ssc install ftools
+capture noisily reghdfe ln_yield gdd kdd precip_mm p2, absorb(did year) vce(cluster did)
+capture noisily chk "GDD/KDD b[gdd]" _b[gdd] 0.00037411314971448997 1e-6
+capture noisily chk "GDD/KDD se[gdd]" _se[gdd] 2.8757790972869816e-05 1e-3
+capture noisily chk "GDD/KDD b[kdd]" _b[kdd] -0.0024556829543893773 1e-6
+capture noisily chk "GDD/KDD se[kdd]" _se[kdd] 5.04611613220897e-05 1e-3
+capture noisily chk "GDD/KDD b[precip_mm]" _b[precip_mm] 0.001458726062798921 1e-6
+capture noisily chk "GDD/KDD se[precip_mm]" _se[precip_mm] 7.050536387527766e-05 1e-3
+capture noisily chk "GDD/KDD b[p2]" _b[p2] -2.415549261460776e-06 1e-6
+capture noisily chk "GDD/KDD se[p2]" _se[p2] 1.7731357238407238e-07 1e-3
+import delimited "v111_ricardian.csv", clear varnames(1) case(preserve)
+gen lv = ln(land_value_k_egp)
+gen temp_winter2 = temp_winter^2
+gen temp_summer2 = temp_summer^2
+gen precip_winter2 = precip_winter^2
+gen precip_summer2 = precip_summer^2
+quietly regress lv temp_winter temp_winter2 temp_summer temp_summer2 precip_winter precip_winter2 precip_summer precip_summer2 soil_quality distance_city_km irrigated, vce(robust)
+chk "Ricardian b[_cons]" _b[_cons] 5.929982622175821 1e-6
+chk "Ricardian se[_cons]" _se[_cons] 0.20820540488383096 1e-6
+chk "Ricardian b[temp_winter]" _b[temp_winter] 0.023478868455726665 1e-6
+chk "Ricardian se[temp_winter]" _se[temp_winter] 0.007425467475793619 1e-6
+chk "Ricardian b[temp_winter2]" _b[temp_winter2] -0.0008407248073187129 1e-6
+chk "Ricardian se[temp_winter2]" _se[temp_winter2] 0.00022870526762251242 1e-6
+chk "Ricardian b[temp_summer]" _b[temp_summer] 0.030161031440121555 1e-6
+chk "Ricardian se[temp_summer]" _se[temp_summer] 0.01315718721319738 1e-6
+chk "Ricardian b[temp_summer2]" _b[temp_summer2] -0.0006012584608251423 1e-6
+chk "Ricardian se[temp_summer2]" _se[temp_summer2] 0.00021753712343208802 1e-6
+chk "Ricardian b[precip_winter]" _b[precip_winter] -1.3588568471452345e-05 1e-6
+chk "Ricardian se[precip_winter]" _se[precip_winter] 0.00028571700185149075 1e-6
+chk "Ricardian b[precip_winter2]" _b[precip_winter2] 7.809966605810807e-07 1e-6
+chk "Ricardian se[precip_winter2]" _se[precip_winter2] 3.1950554365661876e-06 1e-6
+chk "Ricardian b[precip_summer]" _b[precip_summer] 0.0010167850219566302 1e-6
+chk "Ricardian se[precip_summer]" _se[precip_summer] 0.001052489965668011 1e-6
+chk "Ricardian b[precip_summer2]" _b[precip_summer2] -1.4462321697705284e-05 1e-6
+chk "Ricardian se[precip_summer2]" _se[precip_summer2] 4.2447304385018176e-05 1e-6
+chk "Ricardian b[soil_quality]" _b[soil_quality] 0.029096910142061116 1e-6
+chk "Ricardian se[soil_quality]" _se[soil_quality] 0.0019442027725938942 1e-6
+chk "Ricardian b[distance_city_km]" _b[distance_city_km] -0.0010935978189142471 1e-6
+chk "Ricardian se[distance_city_km]" _se[distance_city_km] 0.00017945901725666415 1e-6
+chk "Ricardian b[irrigated]" _b[irrigated] 0.1097210685080843 1e-6
+chk "Ricardian se[irrigated]" _se[irrigated] 0.003974057870908205 1e-6
+import delimited "v111_emissions.csv", clear varnames(1) case(preserve)
+encode country, gen(cid)
+gen lpc = ln(co2_mt/population)
+gen ly = ln(gdp_pc_usd)
+gen ly2 = ly^2
+capture noisily reghdfe lpc ly ly2, absorb(cid year) vce(cluster cid)
+capture noisily chk "EKC b[ly]" _b[ly] 7.849613671748987 1e-6
+capture noisily chk "EKC b[ly2]" _b[ly2] -0.4271686482672561 1e-6
+capture noisily nlcom exp(-_b[ly]/(2*_b[ly2]))
+capture noisily chk "EKC turning point" el(r(b),1,1) 9778.645075235834 1e-6
+
 display _n "Total failures: $fails"
 if $fails == 0 display as result "ALL CHECKS PASSED — Stata reproduces Aetheris."
