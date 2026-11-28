@@ -33,10 +33,10 @@ def _on_lang_change():
     set_language(st.session_state["lang_select"])
 
 
-WINGS = ["home", "data_hub", "descriptive", "inferential", "econometrics", "forecasting", "applied",
+WINGS = ["home", "data_hub", "descriptive", "inferential", "econometrics", "forecasting", "applied", "impact",
          "operations", "reports", "academy", "community"]
 WING_ICONS = {"home": "🏠", "data_hub": "📥", "descriptive": "📋", "inferential": "🧪",
-              "econometrics": "📐", "forecasting": "🔮", "applied": "🌾", "operations": "⚙️", "reports": "📄", "academy": "🎓", "community": "💬"}
+              "econometrics": "📐", "forecasting": "🔮", "applied": "🌾", "impact": "🧭", "operations": "⚙️", "reports": "📄", "academy": "🎓", "community": "💬"}
 
 # ------------------------------------------
 # Sidebar - Language + Navigation
@@ -131,6 +131,17 @@ if page == "home":
             "المحصول والمعدل الاقتصادي الأمثل؛ ومنحنيات التكاليف والسعة والنطاق؛ وأنظمة التكاليف والربح ترانسلوج؛ والحدود العشوائية والحد "
             "الفوقي وDEA ومالمكويست؛ والإنتاجية بطرق أولي-باكس وليفينسون-بترين وACF؛ واستجابة العرض لنيرلوف وبيت العنكبوت؛ والطلب "
             "ومنحنيات إنجل وأنظمة LES وAIDS وQUAIDS وروتردام مع تحليل الرفاه؛ ودوال الاستهلاك.")),
+        ("🧭", tr("Impact, Spatial & Climate Lab", "مختبر الأثر والمكان والمناخ"),
+         tr("Quantile regression (process plots, slope tests, MMQR, cross-quantilogram); spatial econometrics (weights, Moran / LISA "
+            "maps, LM tests, SAR / SEM / SDM / SAC with spillover impacts, GWR, spatial panels); policy evaluation (RCTs, IV / LATE, "
+            "staggered DiD with Callaway-Sant'Anna and Sun-Abraham, synthetic control and SDiD, regression discontinuity, matching, "
+            "IPW and AIPW); climate economics (degree days, temperature-yield panels, Ricardian, BHM damages and SCC, STIRPAT, EKC, "
+            "decoupling and LMDI).",
+            "الانحدار الكمّي (منحنيات المعاملات واختبارات الميول وMMQR ومخطط الكميات المتقاطع)؛ والاقتصاد القياسي المكاني (الأوزان وخرائط "
+            "موران وLISA واختبارات LM ونماذج SAR وSEM وSDM وSAC مع الآثار الانتشارية والانحدار الموزون جغرافياً والبانل المكاني)؛ وتقييم "
+            "السياسات (التجارب العشوائية والمتغيرات الأداتية وفرق الفروق المتدرج لكالاواي-سانت آنا وسن-أبراهام والضابط التركيبي وSDiD "
+            "وانقطاع الانحدار والمطابقة والترجيح)؛ واقتصاد المناخ (درجات الأيام ونماذج الحرارة والإنتاجية والمنهج الريكاردي ودالة الضرر "
+            "وتكلفة الكربون وSTIRPAT ومنحنى كوزنتس البيئي وفك الارتباط وتفكيك LMDI).")),
         ("⚙️", tr("Operations Research", "بحوث العمليات"),
          tr("Linear programming, transportation, efficiency (DEA) — in development.",
             "البرمجة الخطية، ومسائل النقل، وتحليل الكفاءة (DEA) — قيد التطوير.")),
@@ -205,6 +216,11 @@ elif page == "applied":
     st.header(t("applied"))
     from analytics.applied_ui import render_applied
     render_applied()
+
+elif page == "impact":
+    st.header(t("impact"))
+    from analytics.impact_ui import render_impact
+    render_impact()
 
 elif page == "operations":
     st.header(t("operations"))

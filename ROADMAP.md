@@ -69,7 +69,10 @@ Catalogue §1.15: pooled / FE / RE / between / FD / FGLS with the full specifica
 Catalogue §3.1–3.4 and §3.6: automatic model horse-race with rolling-origin evaluation, classical and state-space models, nowcasting (bridge, MIDAS, dynamic factors), BVAR and local projections, volatility and VaR forecasting, machine learning and Prophet-style models, combinations and scenario forecasts. Deep-learning and foundation-model forecasting (§3.5) is planned with the AI assistant.
 
 ### ✅ Phase 4g — Applied Economics Lab (v1.10)
-Catalogue §2.7–2.8: production functions and their economics, yield response, cost curves, scale and scope, translog cost / profit systems, stochastic frontiers, meta-frontier, DEA and Malmquist, control-function TFP, Nerlove supply response and cobweb, demand and Engel curves, LES / AIDS / QUAIDS / Rotterdam with welfare analysis, consumption functions. Next: v1.11 — quantitative methods, policy evaluation, spatial econometrics, climate and energy (§1.14, §1.20, §1.16, §1.26).
+Catalogue §2.7–2.8: production functions and their economics, yield response, cost curves, scale and scope, translog cost / profit systems, stochastic frontiers, meta-frontier, DEA and Malmquist, control-function TFP, Nerlove supply response and cobweb, demand and Engel curves, LES / AIDS / QUAIDS / Rotterdam with welfare analysis, consumption functions.
+
+### ✅ Phase 4h — Impact, Spatial & Climate Lab (v1.11)
+Catalogue §1.14, §1.16, §1.20, §1.26: quantile regression (process, slope tests, MMQR, cross-quantilogram), spatial econometrics (weights, Moran / LISA, LM tests, SAR / SEM / SDM / SAC with impacts, GWR, spatial panels), policy evaluation (RCT, IV / LATE, staggered DiD with Callaway-Sant'Anna and Sun-Abraham, synthetic control and SDiD, RDD, matching / IPW / AIPW) and climate economics (degree days, temperature-yield panels, Ricardian, BHM damages and SCC, STIRPAT, EKC, Tapio and LMDI). Next: v1.12 — Report Studio, AI assistant and decision-maker dashboard (§8).
 
 ### Phase 4 — Econometrics Lab (flagship, continuing)
 - **Cross-section:** OLS with full diagnostics (Breusch-Pagan/White, VIF, RESET, Jarque-Bera), robust & clustered SEs, Logit/Probit with marginal effects, quantile regression, IV/2SLS.

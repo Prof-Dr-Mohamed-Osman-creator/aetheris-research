@@ -592,3 +592,247 @@ def supply_response_demo(seed: int = 17) -> pd.DataFrame:
                          "real_berseem_price": np.round(np.exp(lpc), 4), "real_fert_price": np.round(np.exp(rng.normal(0, 0.1, n) + 0.01 * (yrs - 1980)), 4),
                          "rainfall_index": np.round(rain, 3), "per_capita_income": np.round(np.exp(8 + 0.02 * (yrs - 1980) + rng.normal(0, 0.03, n)), 1),
                          "consumption_kt": np.round(prod * np.exp(0.45 + 0.02 * (yrs - 1980) + rng.normal(0, 0.04, n)), 1)})
+
+
+# ----------------------------------------------------------------- v1.11 demos
+def _knn_w(xy, k=6):
+    d = np.sqrt(((xy[:, None, :] - xy[None, :, :]) ** 2).sum(-1))
+    np.fill_diagonal(d, np.inf)
+    W = np.zeros_like(d)
+    idx = np.argsort(d, 1)[:, :k]
+    for i in range(len(xy)):
+        W[i, idx[i]] = 1
+    return W / W.sum(1, keepdims=True)
+
+
+def spatial_districts_demo(seed: int = 51) -> pd.DataFrame:
+    """Synthetic cross-section of 150 districts (longitude / latitude in a Nile-valley-like strip) for spatial
+    econometrics: agricultural land value follows a spatial Durbin process (ρ = 0.45 with 6-nearest-neighbour weights),
+    with irrigation share, distance to market, soil quality and average temperature as regressors."""
+    rng = np.random.default_rng(seed)
+    n = 150
+    lat = rng.uniform(22.0, 31.5, n)
+    lon = 31.0 + 0.35 * (lat - 22) * 0.2 + rng.normal(0, 0.9, n)
+    xy = np.column_stack([lon, lat])
+    W = _knn_w(xy, 6)
+    irrig = np.clip(0.3 + 0.05 * (lat - 22) + W @ rng.normal(0, 0.1, n) + rng.normal(0, 0.08, n), 0.02, 0.98)
+    dist = np.abs(rng.normal(30, 15, n)) + 2
+    soil = rng.normal(0, 1, n)
+    temp = 30 - 0.7 * (lat - 22) + rng.normal(0, 0.6, n)
+    X = np.column_stack([irrig, np.log(dist), soil, temp])
+    beta = np.array([1.2, -0.25, 0.15, -0.04])
+    theta = np.array([0.5, 0.0, 0.0, 0.0])
+    e = rng.normal(0, 0.25, n)
+    A = np.linalg.inv(np.eye(n) - 0.45 * W)
+    y = A @ (4.0 + X @ beta + W @ X @ theta + e)
+    return pd.DataFrame({"district": [f"D{i + 1:03d}" for i in range(n)], "longitude": np.round(lon, 4), "latitude": np.round(lat, 4),
+                         "ln_land_value": np.round(y, 4), "irrigation_share": np.round(irrig, 4), "distance_market_km": np.round(dist, 2),
+                         "soil_index": np.round(soil, 3), "avg_temp_c": np.round(temp, 2),
+                         "poverty_rate": np.round(np.clip(0.45 - 0.25 * irrig + 0.002 * dist + W @ rng.normal(0, 0.05, n) + rng.normal(0, 0.03, n), 0.02, 0.9), 4)})
+
+
+def spatial_panel_demo(seed: int = 52) -> pd.DataFrame:
+    """Synthetic spatial panel: the 150 districts of spatial_districts_demo over 2017–2024, spatial-lag model with
+    district fixed effects (ρ = 0.35)."""
+    rng = np.random.default_rng(seed)
+    base = spatial_districts_demo()
+    xy = base[["longitude", "latitude"]].to_numpy()
+    W = _knn_w(xy, 6)
+    n = len(base)
+    mu = rng.normal(0, 0.4, n)
+    A = np.linalg.inv(np.eye(n) - 0.35 * W)
+    rows = []
+    for t, yr in enumerate(range(2017, 2025)):
+        rain = rng.normal(0, 1, n) + 0.3 * rng.normal()
+        fert = np.exp(rng.normal(5.5 + 0.03 * t, 0.2, n))
+        y = A @ (1.0 + mu + 0.35 * np.log(fert) + 0.08 * rain + rng.normal(0, 0.12, n))
+        for i in range(n):
+            rows.append({"district": base.district[i], "year": yr, "longitude": xy[i, 0], "latitude": xy[i, 1], "ln_yield": round(y[i], 4),
+                         "ln_fertilizer": round(float(np.log(fert[i])), 4), "rainfall_anomaly": round(rain[i], 3)})
+    return pd.DataFrame(rows)
+
+
+def rct_extension_demo(seed: int = 61) -> pd.DataFrame:
+    """Synthetic randomised trial: 1,200 farmers, half randomly offered an extension programme stratified by region;
+    true average effect on log yield 0.08 (larger for smallholders); baseline covariates and baseline yield."""
+    rng = np.random.default_rng(seed)
+    n = 1200
+    region = rng.choice(["Delta", "Middle", "Upper"], n, p=[0.45, 0.3, 0.25])
+    land = np.exp(rng.normal(1.0, 0.6, n))
+    educ = rng.integers(0, 16, n)
+    base = 1.2 + 0.1 * np.log(land) + 0.01 * educ + rng.normal(0, 0.25, n)
+    treat = np.zeros(n, int)
+    for r in np.unique(region):
+        idx = np.where(region == r)[0]
+        treat[rng.choice(idx, len(idx) // 2, replace=False)] = 1
+    eff = 0.08 + 0.04 * (land < np.median(land))
+    take = (rng.random(n) < 0.85) & (treat == 1)
+    y = 0.3 + 0.75 * base + 0.02 * educ + eff * take + rng.normal(0, 0.18, n)
+    return pd.DataFrame({"farmer_id": np.arange(1, n + 1), "region": region, "treatment_offered": treat, "participated": take.astype(int),
+                         "land_feddan": np.round(land, 3), "education_years": educ, "baseline_ln_yield": np.round(base, 4), "ln_yield": np.round(y, 4)})
+
+
+def staggered_did_demo(seed: int = 62) -> pd.DataFrame:
+    """Synthetic panel of 300 villages × 2010–2024 with staggered adoption of an irrigation-modernisation programme
+    (cohorts 2014, 2017, 2020, never treated); effects grow with exposure (0.03 per year, capped) and differ by cohort,
+    so two-way fixed effects are biased while Callaway-Sant'Anna / Sun-Abraham recover the dynamic effects."""
+    rng = np.random.default_rng(seed)
+    cohorts = rng.choice([2014, 2017, 2020, 0], 300, p=[0.25, 0.25, 0.2, 0.3])
+    rows = []
+    for i, g in enumerate(cohorts):
+        a = rng.normal(0, 0.3)
+        x = rng.normal(0, 1)
+        for yr in range(2010, 2025):
+            e = yr - g if g else -99
+            te = (0.05 + 0.03 * min(e, 5)) * (1 + 0.5 * (g == 2014)) if g and e >= 0 else 0.0
+            y = 2 + a + 0.02 * (yr - 2010) + 0.01 * (yr - 2010) * x + te + rng.normal(0, 0.08)
+            rows.append({"village": f"V{i + 1:03d}", "year": yr, "first_treated": int(g), "treated": int(g > 0 and yr >= g),
+                         "ln_water_productivity": round(y, 4), "baseline_x": round(x, 3)})
+    return pd.DataFrame(rows)
+
+
+def rdd_scholarship_demo(seed: int = 63) -> pd.DataFrame:
+    """Synthetic regression-discontinuity data: 3,000 students; scholarship if the entrance score ≥ 60 (sharp), and a
+    fuzzy take-up (90% above, 15% below the cutoff); effect of the scholarship on first-year GPA 0.30."""
+    rng = np.random.default_rng(seed)
+    n = 3000
+    score = np.clip(rng.normal(58, 12, n), 20, 99)
+    elig = (score >= 60).astype(int)
+    take = np.where(elig == 1, rng.random(n) < 0.9, rng.random(n) < 0.15).astype(int)
+    gpa = 1.2 + 0.03 * score - 0.0001 * (score - 60) ** 2 + 0.30 * take + rng.normal(0, 0.35, n)
+    return pd.DataFrame({"student_id": np.arange(1, n + 1), "entrance_score": np.round(score, 2), "eligible": elig, "scholarship": take,
+                         "gpa": np.round(gpa, 3), "female": rng.integers(0, 2, n)})
+
+
+def scm_regions_demo(seed: int = 64) -> pd.DataFrame:
+    """Synthetic panel of 25 regions × 1995–2024 for synthetic control / synthetic DiD: region 'Sinai Coast' receives a
+    tourism-investment policy in 2012; its outcome is a convex combination of three donors plus a policy effect that
+    rises to about 12%."""
+    rng = np.random.default_rng(seed)
+    R, years = 25, np.arange(1995, 2025)
+    f = np.cumsum(rng.normal(0.02, 0.03, (3, len(years))), 1)
+    load = rng.dirichlet(np.ones(3), R)
+    lev = rng.normal(9, 0.3, R)
+    Y = lev[:, None] + load @ f + rng.normal(0, 0.015, (R, len(years)))
+    w = np.zeros(R); w[[3, 7, 12]] = [0.5, 0.3, 0.2]
+    Y[0] = w @ Y + rng.normal(0, 0.012, len(years))
+    eff = np.where(years >= 2012, 0.12 * (1 - np.exp(-(years - 2011) / 3)), 0)
+    Y[0] += eff
+    names = ["Sinai Coast"] + [f"Region {i:02d}" for i in range(1, R)]
+    rows = []
+    for r in range(R):
+        for t, yr in enumerate(years):
+            rows.append({"region": names[r], "year": int(yr), "ln_gdp_pc": round(Y[r, t], 4),
+                         "investment_share": round(0.2 + 0.05 * load[r, 0] + rng.normal(0, 0.01), 4),
+                         "schooling_years": round(7 + 2 * load[r, 1] + 0.05 * t + rng.normal(0, 0.1), 3), "treated_unit": int(r == 0)})
+    return pd.DataFrame(rows)
+
+
+def credit_program_demo(seed: int = 65) -> pd.DataFrame:
+    """Synthetic observational data (2,000 households) for matching / weighting: participation in a micro-credit
+    programme depends on observables (selection on observables); true ATT on log income 0.12, ATE 0.10."""
+    rng = np.random.default_rng(seed)
+    n = 2000
+    age = rng.normal(42, 11, n)
+    educ = rng.integers(0, 17, n)
+    land = np.exp(rng.normal(0.8, 0.7, n))
+    female = rng.integers(0, 2, n)
+    dist = np.abs(rng.normal(8, 5, n))
+    z = -1.0 + 0.08 * educ - 0.05 * dist + 0.4 * female - 0.3 * np.log(land) + 0.01 * (age - 42)
+    d = (rng.random(n) < 1 / (1 + np.exp(-z))).astype(int)
+    te = 0.08 + 0.04 * female + 0.002 * educ
+    y = 8.5 + 0.03 * educ + 0.15 * np.log(land) + 0.005 * age - 0.01 * dist + te * d + rng.normal(0, 0.3, n)
+    return pd.DataFrame({"hh_id": np.arange(1, n + 1), "participant": d, "ln_income": np.round(y, 4), "age": np.round(age, 1), "education_years": educ,
+                         "land_feddan": np.round(land, 3), "female_head": female, "distance_branch_km": np.round(dist, 2)})
+
+
+def crop_climate_panel_demo(seed: int = 71) -> pd.DataFrame:
+    """Synthetic district-year panel (40 districts × 1995–2024) for climate–yield econometrics: growing degree days
+    (8–29 °C), killing degree days (> 29 °C), season precipitation and days in temperature bins; log wheat yield responds
+    positively to GDD and sharply negatively to KDD (Schlenker-Roberts style), with district effects and trends."""
+    rng = np.random.default_rng(seed)
+    rows = []
+    for d in range(40):
+        clim = rng.normal(22, 2.5)
+        a = rng.normal(0, 0.15)
+        for t, yr in enumerate(range(1995, 2025)):
+            tmean = clim + 0.04 * t + rng.normal(0, 0.8) + rng.normal(0, 4.5, 150)
+            tmax = tmean + 6 + rng.normal(0, 1, 150)
+            tmin = tmean - 6 + rng.normal(0, 1, 150)
+            gdd = np.sum(np.clip(np.minimum(tmean, 29) - 8, 0, None))
+            kdd = np.sum(np.clip(tmax - 29, 0, None))
+            prec = max(rng.gamma(4, 40), 5)
+            bins = np.histogram(tmax, bins=[-50, 10, 15, 20, 25, 30, 35, 100])[0]
+            ly = 0.5 + a + 0.0004 * gdd - 0.0025 * kdd + 0.0015 * prec - 2.5e-6 * prec ** 2 + 0.008 * t + rng.normal(0, 0.05)
+            rows.append({"district": f"G{d + 1:02d}", "year": yr, "ln_yield": round(ly, 4), "gdd": round(gdd, 1), "kdd": round(kdd, 1),
+                         "precip_mm": round(prec, 1), "tmean_season": round(tmean.mean(), 2), "tmin_season": round(tmin.mean(), 2),
+                         **{f"days_tmax_{lab}": int(b) for lab, b in zip(["lt10", "10_15", "15_20", "20_25", "25_30", "30_35", "gt35"], bins)}})
+    return pd.DataFrame(rows)
+
+
+def daily_weather_demo(seed: int = 72) -> pd.DataFrame:
+    """Synthetic daily minimum / maximum temperature and rainfall for 5 stations over the 2020–2024 wheat seasons
+    (Nov–Apr) — for degree-day calculations."""
+    rng = np.random.default_rng(seed)
+    rows = []
+    for s in range(5):
+        for yr in range(2020, 2025):
+            dates = pd.date_range(f"{yr - 1}-11-15", f"{yr}-04-15")
+            doy = np.arange(len(dates))
+            base = 16 + 8 * np.sin(np.pi * (doy - 70) / 150) + s * 0.8
+            tmax = base + 7 + rng.normal(0, 2.5, len(dates))
+            tmin = base - 6 + rng.normal(0, 2.0, len(dates))
+            rain = np.where(rng.random(len(dates)) < 0.08, rng.gamma(2, 4, len(dates)), 0)
+            for dte, a, b, r in zip(dates, tmin, tmax, rain):
+                rows.append({"station": f"Station {s + 1}", "season": yr, "date": dte, "tmin": round(a, 2), "tmax": round(b, 2), "rain_mm": round(r, 2)})
+    return pd.DataFrame(rows)
+
+
+def ricardian_demo(seed: int = 73) -> pd.DataFrame:
+    """Synthetic cross-section of 400 farms for the Ricardian approach: land value per feddan depends on seasonal
+    climate normals (winter and summer temperature and precipitation, quadratic), soils and market access."""
+    rng = np.random.default_rng(seed)
+    n = 400
+    tw = rng.normal(16, 2.5, n)
+    ts = rng.normal(30, 2.5, n)
+    pw = np.abs(rng.normal(40, 25, n))
+    ps = np.abs(rng.normal(10, 8, n))
+    soil = rng.normal(0, 1, n)
+    dist = np.abs(rng.normal(25, 12, n))
+    irr = (rng.random(n) < 0.6).astype(int)
+    lv = (60 + 5 * tw - 0.18 * tw ** 2 + 9 * ts - 0.17 * ts ** 2 + 0.12 * pw - 0.0009 * pw ** 2 + 0.1 * ps + 6 * soil - 0.3 * dist + 25 * irr
+          + rng.normal(0, 8, n))
+    return pd.DataFrame({"farm_id": np.arange(1, n + 1), "land_value_k_egp": np.round(lv * 3, 2), "temp_winter": np.round(tw, 2), "temp_summer": np.round(ts, 2),
+                         "precip_winter": np.round(pw, 1), "precip_summer": np.round(ps, 1), "soil_quality": np.round(soil, 3),
+                         "distance_city_km": np.round(dist, 1), "irrigated": irr})
+
+
+def country_emissions_demo(seed: int = 74) -> pd.DataFrame:
+    """Synthetic country panel (50 countries × 1990–2023) for STIRPAT, EKC, Tapio decoupling, LMDI (Kaya identity) and
+    climate–growth damage functions: population, GDP per capita, energy use, CO₂, temperature (Burke-Hsiang-Miguel
+    style concave effect of temperature on growth, optimum ≈ 13 °C)."""
+    rng = np.random.default_rng(seed)
+    rows = []
+    for c in range(50):
+        T0 = rng.uniform(5, 28)
+        pop = np.exp(rng.normal(16.5, 1.2))
+        gdp = np.exp(rng.normal(8.5, 1.0))
+        ei = np.exp(rng.normal(-1.8, 0.3))
+        ci = np.exp(rng.normal(-2.8, 0.2))
+        a = rng.normal(0.015, 0.01)
+        for yr in range(1990, 2024):
+            temp = T0 + 0.025 * (yr - 1990) + rng.normal(0, 0.35)
+            g = a + 0.0127 * temp - 0.0005 * temp ** 2 - (0.0127 * T0 - 0.0005 * T0 ** 2) + rng.normal(0, 0.02)
+            if yr > 1990:
+                gdp *= np.exp(g)
+                pop *= np.exp(rng.normal(0.015, 0.003))
+                ei *= np.exp(rng.normal(-0.004, 0.01))
+                ci *= np.exp(rng.normal(-0.004 * (np.log(gdp) > 9.3), 0.01))
+            # income-related structural change: energy intensity falls with (ln y − 8)², giving an inverted-U
+            # (EKC) in CO2 per capita with a turning point near ln y = 9.25 (≈ 10,400 USD)
+            energy = pop * gdp * ei * np.exp(-0.4 * (np.log(gdp) - 8.0) ** 2) / 1e7
+            co2 = energy * ci
+            rows.append({"country": f"C{c + 1:02d}", "year": yr, "population": round(pop), "gdp_pc_usd": round(gdp, 2), "energy_pj": round(energy, 3),
+                         "co2_mt": round(co2, 4), "temperature_c": round(temp, 3), "gdp_growth": round(g if yr > 1990 else np.nan, 5) if yr > 1990 else np.nan})
+    df = pd.DataFrame(rows)
+    return df
