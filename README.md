@@ -17,7 +17,7 @@ A complete research workflow inside one integrated environment:
 
 ## Current Status
 
-- Version: `1.12.2-alpha`
+- Version: `1.12.3-alpha`
 - Live: https://aetheris-research.streamlit.app
 - Languages: English + Arabic (full RTL support)
 - ✅ Data Hub: file upload, World Bank WDI, FRED, Data Basket (multi-dataset memory + merge)
@@ -35,6 +35,7 @@ A complete research workflow inside one integrated environment:
 - ✅ **Report Studio, AI Research Assistant and Decision Dashboard v1.12 (catalogue §8):** every analysis that offers a Word report in any wing is captured automatically (tables, charts, interpretations, references); the Report Studio assembles selected results into one report — title page, abstract, numbered sections, APA / journal tables and figures, a merged reference list — and exports Word, PDF (Arabic shaped with HarfBuzz), LaTeX (zip with figures), interactive HTML and Markdown, right-to-left or left-to-right. The AI assistant (Claude via the Anthropic API when `ANTHROPIC_API_KEY` is set; an offline mode otherwise) recommends models from the data structure and research goal, drafts methodology / results / discussion / abstracts / policy briefs only from computed results with a number checker that flags any figure not found in them, and answers methodological questions in Arabic from the platform's methodology library. The decision dashboard shows key findings in plain language, KPI cards, early-warning traffic lights (z-score, percentile, real-time HP gap, fixed thresholds) with a composite index, the Kaminsky-Lizondo-Reinhart signals approach, forecast-based breach probabilities and what-if scenarios. Tests: `tests/test_v112.py`.
 - ✅ **v1.12.1 — multi-provider AI:** the assistant works with Claude, ChatGPT, Gemini (free tier), Groq and OpenRouter (free models) or any OpenAI-compatible endpoint (DeepSeek, Mistral, a local Ollama); researchers choose the provider and model (live model list or any ID) and may use their own key (session only), otherwise the platform key is used under an optional access code, daily per-session and platform-wide limits and low-cost models only. Setup guide: [docs/AI_SETUP.md](docs/AI_SETUP.md); secrets template: `.streamlit/secrets.toml.example`. Tests: `tests/test_ai_providers.py`.
 - ✅ **v1.12.2 — research writing workspace:** draft the introduction, problem and objectives, literature review, theoretical framework, conceptual model and hypotheses, methodology, discussion or conclusions in a conversation with any configured AI model, grounded only in the sources the researcher pastes or uploads (PDF, Word, BibTeX, text) and optionally the computed results; the model writes “[reference needed]” instead of inventing references, every in-text citation is checked against the supplied sources, and drafts go into the Report Studio with their references (offline: structured outlines). Tests: `tests/test_writing.py`.
+- ✅ **v1.12.3 — free AI conversation:** an open chat with the configured model (a free Gemini or Groq key is enough) that answers from its own knowledge, with optional context (dataset structure, session results, writing draft), Crossref verification of any reference in an answer (verified / partial / not found, with DOI), and export / add-to-report / send-to-writing actions. Tests: `tests/test_free_chat.py`.
 - Strategic plan: see [ROADMAP.md](ROADMAP.md) · Full model catalogue: [docs/MODEL_CATALOG.md](docs/MODEL_CATALOG.md)
 
 ## Project Structure
@@ -108,6 +109,7 @@ aetheris-research/
 │   ├── ai_providers.py        # v1.12.1 Claude / ChatGPT / Gemini / Groq / OpenRouter / OpenAI-compatible; key governance
 │   ├── ai_settings_ui.py      # v1.12.1 provider, model, own key, access code, usage
 │   ├── writing.py             # v1.12.2 grounded research writing: sources, prompts, citation checks, outlines
+│   ├── free_chat.py           # v1.12.3 free AI conversation; Crossref verification of references
 │   ├── assistant_ui.py        # v1.12 AI Research Assistant wing
 │   ├── dashboard.py           # v1.12 KPIs, early-warning signals, KLR signals approach, scenarios
 │   ├── dashboard_ui.py        # v1.12 Decision Dashboard wing

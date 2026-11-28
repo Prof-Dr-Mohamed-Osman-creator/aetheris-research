@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import json
+
 import streamlit as st
 
 from analytics import ai_assistant as ai
@@ -31,13 +33,113 @@ def render_assistant():
                          "المنهجية — بالعربية أو الإنجليزية."))
     from analytics.ai_settings_ui import settings_panel
     llm = settings_panel("ai")
-    tabs = st.tabs([tr("📝 Research writing", "📝 الكتابة البحثية"), tr("🧭 Model advisor", "🧭 مستشار النماذج"), tr("💬 Ask", "💬 اسأل")])
+    tabs = st.tabs([tr("🗨️ Free conversation", "🗨️ محادثة حرة"), tr("📝 Research writing", "📝 الكتابة البحثية"), tr("🧭 Model advisor", "🧭 مستشار النماذج"),
+                    tr("💬 Methodology library", "💬 مكتبة المنهجيات")])
     with tabs[0]:
-        _writing(llm)
+        _free_chat(llm)
     with tabs[1]:
-        _advisor(llm)
+        _writing(llm)
     with tabs[2]:
+        _advisor(llm)
+    with tabs[3]:
         _chat(llm)
+
+
+# ---------------------------------------------------------- free conversation (the model's own knowledge)
+def _free_chat(llm):
+    from analytics import free_chat as fc
+    ss = st.session_state
+    hist = ss.setdefault("_fc_hist", [])
+    lang = _lang()
+    st.caption(tr("Talk freely with the AI about anything in your research — concepts, critiques of a model, ideas for a thesis, drafting, translation. "
+                  "It answers from its own knowledge (no sources needed). Treat facts and references from a model's memory with care: use 🔎 to check "
+                  "references against Crossref.",
+                  "تحدّث بحرية مع الذكاء الاصطناعي في أي شأن بحثي — المفاهيم، ونقد نموذج، وأفكار لرسالة، والصياغة، والترجمة. يجيب من معرفته "
+                  "(دون حاجة إلى مصادر). تعامل بحذر مع الحقائق والمراجع الصادرة من ذاكرة النموذج: استخدم 🔎 للتحقق من المراجع عبر Crossref."))
+    if not llm.available:
+        st.warning(tr("The free conversation needs an AI model. A free key is enough — Gemini (Google) or Groq — no Claude key required: open "
+                      "“⚙️ AI model & key” above, choose the provider and paste the key.",
+                      "تحتاج المحادثة الحرة إلى نموذج ذكاء اصطناعي. يكفي مفتاح مجاني — Gemini من Google أو Groq — دون حاجة إلى مفتاح Claude: افتح "
+                      "«⚙️ نموذج الذكاء الاصطناعي والمفتاح» في الأعلى، واختر المزوّد، والصق المفتاح."))
+        c1, c2 = st.columns(2)
+        c1.markdown(f"[{tr('🔑 Free Gemini key', '🔑 مفتاح Gemini مجاني')}](https://aistudio.google.com/apikey)")
+        c2.markdown(f"[{tr('🔑 Free Groq key', '🔑 مفتاح Groq مجاني')}](https://console.groq.com/keys)")
+    with st.expander(tr("📎 Attach context to my next questions (optional)", "📎 أرفق سياقاً بأسئلتي القادمة (اختياري)"), expanded=False):
+        a, b, c = st.columns(3)
+        use_data = a.checkbox(tr("Structure of the active dataset", "بنية البيانات النشطة"), False, key="fc_ctx_data", disabled=not has_data())
+        res = list(store.results().values())
+        use_res = b.checkbox(tr(f"Results of this session ({len(res)})", f"نتائج هذه الجلسة ({len(res)})"), False, key="fc_ctx_res", disabled=not res)
+        draft = (ss.get("_wr") or {}).get("draft", "")
+        use_draft = c.checkbox(tr("My writing-workspace draft", "مسودتي في مساحة الكتابة"), False, key="fc_ctx_draft", disabled=not draft)
+        st.caption(tr("Only what you tick is sent — never the raw data rows.", "لا يُرسل إلا ما تختاره — ولا تُرسل صفوف البيانات الخام أبداً."))
+    for i, m in enumerate(hist):
+        with st.chat_message(m["role"]):
+            st.markdown(m.get("display", m["content"]))
+            if m["role"] == "assistant" and m.get("checks"):
+                for r in m["checks"]:
+                    icon = {"verified": "✅", "partial": "🟡", "not found": "❌", "error": "⚪"}[r["status"]]
+                    line = f"{icon} {r['reference'][:160]}"
+                    if r.get("doi") and r["status"] != "not found":
+                        line += f"  \n↳ {r.get('title', '')[:120]} ({r.get('year')}) · https://doi.org/{r['doi']}"
+                    st.caption(line)
+    q = st.chat_input(tr("Write your question or request…", "اكتب سؤالك أو طلبك…"), key="fc_in", disabled=not llm.available)
+    if q:
+        ctx = {}
+        if use_data and has_data():
+            ctx["dataset_profile"] = {k: v for k, v in ai.profile(get_memory()).items()}
+            ctx["dataset_name"] = active_name()
+        if use_res and res:
+            ctx["session_results"] = json.loads(ai._result_context(res[-4:]))
+        if use_draft and draft:
+            ctx["writing_draft"] = draft[:20000]
+        msgs = fc.build_messages([{"role": m["role"], "content": m["content"]} for m in hist], q, ctx or None, lang)
+        hist.append({"role": "user", "content": msgs[-1]["content"], "display": q})
+        with st.chat_message("user"):
+            st.markdown(q)
+        with st.chat_message("assistant"):
+            try:
+                with st.spinner("…"):
+                    out = llm.complete(fc.SYSTEM[lang], msgs, max_tokens=3000, temperature=0.5)
+            except Exception as e:  # noqa: BLE001
+                out = None
+                st.error(tr(f"The AI service did not respond: {e}", f"لم تستجب خدمة الذكاء الاصطناعي: {e}"))
+            if out:
+                st.markdown(out)
+                hist.append({"role": "assistant", "content": out, "model": llm.label})
+        if not out:
+            hist.pop()
+    last = next((m for m in reversed(hist) if m["role"] == "assistant"), None)
+    if last:
+        refs = fc.find_references(last["content"])
+        c1, c2, c3 = st.columns(3)
+        if refs and c1.button(tr(f"🔎 Verify {len(refs)} reference(s) (Crossref)", f"🔎 تحقق من {len(refs)} مرجعاً (Crossref)"), key="fc_verify"):
+            with st.spinner(tr("Checking the DOI registry…", "جارٍ الفحص في سجل DOI…")):
+                last["checks"] = [fc.verify_reference(r) for r in refs]
+            st.rerun()
+        if c2.button(tr("➕ Add last answer to the report", "➕ أضف آخر إجابة إلى التقرير"), key="fc_add"):
+            store.add_item("text", tr("Notes from the AI conversation", "ملاحظات من المحادثة"), text=last["content"])
+            st.success(tr("Added — see 📄 Report Studio → ② Report outline.", "تمت الإضافة — راجع 📄 استوديو التقارير ← ② هيكل التقرير."))
+        if c3.button(tr("📝 Send to the writing workspace", "📝 أرسل إلى مساحة الكتابة"), key="fc_to_wr"):
+            W = ss.setdefault("_wr", {"draft": "", "history": [], "refs_used": [], "section": "free"})
+            W["draft"] = ((W.get("draft") or "") + "\n\n" + last["content"]).strip()
+            W["pending"] = W["draft"]
+            st.success(tr("Appended to the draft in 📝 Research writing.", "أُلحقت بالمسودة في 📝 الكتابة البحثية."))
+        if last.get("checks"):
+            bad = sum(r["status"] == "not found" for r in last["checks"])
+            if bad:
+                st.warning(tr(f"{bad} reference(s) could not be found in Crossref — they may not exist; do not cite them without checking the original.",
+                              f"{bad} مرجعاً لم يُعثر عليه في Crossref — قد لا يكون موجوداً؛ لا تستشهد به قبل الرجوع إلى الأصل."))
+    if hist:
+        from analytics.reg_report import to_docx
+        md = fc.to_markdown(hist, lang)
+        d1, d2, d3 = st.columns(3)
+        d1.download_button(tr("⬇️ Conversation (Markdown)", "⬇️ المحادثة (Markdown)"), md.encode("utf-8"), "conversation.md", key="fc_md")
+        d2.download_button(tr("⬇️ Conversation (Word)", "⬇️ المحادثة (Word)"),
+                           to_docx([("p", x) for x in md.split("\n\n") if x.strip() and not x.startswith("# ")], tr("AI conversation", "محادثة الذكاء الاصطناعي"), is_ar()),
+                           "conversation.docx", key="fc_docx")
+        if d3.button(tr("🧹 New conversation", "🧹 محادثة جديدة"), key="fc_clear"):
+            ss["_fc_hist"] = []
+            st.rerun()
 
 
 # ---------------------------------------------------------- research writing workspace
