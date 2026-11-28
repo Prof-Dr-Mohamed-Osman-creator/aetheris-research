@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
+import warnings
+
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -441,12 +443,60 @@ def multiplier_bands(r: ArdlResult, df: pd.DataFrame, pairs: dict, h: int = 24, 
 
 
 # ---------------- QARDL ----------------
+def _rq_vertex(y, X, tau, b0, tol=1e-9):
+    """Round an approximate solution to the vertex through the k smallest-residual observations and certify it with
+    the KKT conditions (dual weights of the basic observations inside [τ−1, τ]); returns None if not certified."""
+    n, k = X.shape
+    order = np.argsort(np.abs(y - X @ b0), kind="stable")
+    h = []
+    for i in order[:min(n, 5 * k + 20)]:
+        cand = h + [i]
+        if np.linalg.matrix_rank(X[cand]) == len(cand):
+            h = cand
+        if len(h) == k:
+            break
+    if len(h) < k:
+        return None
+    h = np.array(h)
+    b = np.linalg.solve(X[h], y[h])
+    r = y - X @ b
+    nb = np.ones(n, bool)
+    nb[h] = False
+    if np.any(np.abs(r[nb]) < 1e-12 * max(1.0, np.abs(y).max())):
+        return None                                    # degenerate: let the LP decide
+    psi = np.where(r[nb] > 0, tau, tau - 1)
+    g = X[nb].T @ psi
+    v = np.linalg.solve(X[h].T, -g)
+    if np.all(v >= tau - 1 - tol) and np.all(v <= tau + tol):
+        return b
+    return None
+
+
 def rq(y: np.ndarray, X: np.ndarray, tau: float) -> np.ndarray:
-    """Exact quantile regression (Koenker-Bassett) by linear programming (HiGHS) — the R quantreg 'br' solution."""
+    """Exact quantile regression (Koenker-Bassett) — the R quantreg 'br' solution. A fast IRLS start is rounded to a
+    vertex certified optimal by the KKT conditions; otherwise the LP is solved exactly by HiGHS (sparse)."""
+    y, X = np.asarray(y, float), np.asarray(X, float)
+    if len(y) > 300:
+        try:
+            import statsmodels.api as sm
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                b0 = sm.QuantReg(y, X).fit(q=tau, max_iter=300, p_tol=1e-8).params
+            b = _rq_vertex(y, X, tau, np.asarray(b0))
+            if b is not None:
+                return b
+        except Exception:  # noqa: BLE001
+            pass
+    return _rq_lp(y, X, tau)
+
+
+def _rq_lp(y: np.ndarray, X: np.ndarray, tau: float) -> np.ndarray:
+    from scipy import sparse
     from scipy.optimize import linprog
     n, k = X.shape
     c = np.r_[np.zeros(k), tau * np.ones(n), (1 - tau) * np.ones(n)]
-    A = np.hstack([X, np.eye(n), -np.eye(n)])
+    I = sparse.identity(n, format="csc")
+    A = sparse.hstack([sparse.csc_matrix(X), I, -I], format="csc")   # sparse: O(n) memory, fast HiGHS
     bounds = [(None, None)] * k + [(0, None)] * (2 * n)
     res = linprog(c, A_eq=A, b_eq=y, bounds=bounds, method="highs")
     if res.status != 0:
