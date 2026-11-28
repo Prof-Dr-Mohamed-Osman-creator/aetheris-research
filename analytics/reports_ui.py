@@ -27,7 +27,7 @@ def _lang():
 
 
 def llm_from_session():
-    return ai.LLM(st.session_state.get("_ai_key"))
+    return ai.session_llm()
 
 
 def render_reports():
@@ -178,15 +178,8 @@ def _check_box(text, results=None):
 
 def _write_tab(res):
     L = [it for it in store.items() if it["kind"] == "result"]
-    llm = llm_from_session()
-    if llm.available:
-        st.success(tr(f"AI assistant active (Claude · {llm.model}). It sees only the computed results and every number it writes is checked.",
-                      f"مساعد الذكاء الاصطناعي مفعّل (Claude · {llm.model}). لا يرى إلا النتائج المحسوبة، ويُفحص كل رقم يكتبه."), icon="🤖")
-    else:
-        st.info(tr("Offline mode: texts are assembled from the analysis outputs by templates. Add an Anthropic API key in the 🤖 AI assistant page (or as the "
-                   "ANTHROPIC_API_KEY secret) for fluent academic drafting.",
-                   "الوضع دون اتصال: تُجمَّع النصوص من مخرجات التحليل بقوالب. أضف مفتاح Anthropic API في صفحة 🤖 المساعد (أو كسرّ ANTHROPIC_API_KEY) "
-                   "لصياغة أكاديمية سلسة."), icon="📝")
+    from analytics.ai_settings_ui import compact_status
+    llm = compact_status()
     if not L:
         st.info(tr("Add results to the report first (tab ①).", "أضف نتائج إلى التقرير أولاً (التبويب ①)."))
         return
@@ -205,13 +198,13 @@ def _write_tab(res):
         except Exception as e:  # noqa: BLE001
             st.error(tr(f"The AI service did not respond ({e}); using the offline template.", f"لم تستجب خدمة الذكاء الاصطناعي ({e})؛ سيُستخدم القالب دون اتصال."))
             out = ai.write(task, [it["result"] for it in chosen], _lang(), None, extra)
-        st.session_state["_rs_draft"] = {"task": task, "ids": pick, **out}
+        st.session_state["_rs_draft"] = {"task": task, "ids": pick, "model": llm.label if llm.available else "", **out}
     d = st.session_state.get("_rs_draft")
     if d:
         txt = st.text_area(tr("Draft (editable)", "المسودة (قابلة للتعديل)"), d["text"], height=260, key="rs_w_txt")
         chosen = [it for it in L if it["id"] in d["ids"]]
         _check_box(txt, [it["result"] for it in chosen])
-        st.caption(tr("Source: ", "المصدر: ") + ("Claude" if d["source"] == "ai" else tr("offline template", "قالب دون اتصال")))
+        st.caption(tr("Source: ", "المصدر: ") + (d.get("model", "AI") if d["source"] == "ai" else tr("offline template", "قالب دون اتصال")))
         c1, c2 = st.columns(2)
         if d["task"] == "abstract":
             if c1.button(tr("Use as the report abstract", "استخدامه ملخصاً للتقرير"), key="rs_w_abs"):

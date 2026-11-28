@@ -21,7 +21,7 @@ def _lang():
 
 
 def _llm():
-    return ai.LLM(st.session_state.get("_ai_key"))
+    return ai.session_llm()
 
 
 def render_assistant():
@@ -29,21 +29,8 @@ def render_assistant():
                          "and answers your methodological questions — in Arabic or English.",
                          "يقترح النموذج المناسب لسؤالك وبياناتك، ويكتب النصوص الأكاديمية من الأرقام التي حسبتها المنصة فعلاً فقط، ويجيب عن أسئلتك "
                          "المنهجية — بالعربية أو الإنجليزية."))
-    llm = _llm()
-    with st.expander(tr("⚙️ AI connection", "⚙️ الاتصال بالذكاء الاصطناعي"), expanded=not llm.available):
-        if llm.available and not st.session_state.get("_ai_key"):
-            st.success(tr(f"Connected through the server key (model {llm.model}).", f"متصل عبر مفتاح الخادم (النموذج {llm.model})."))
-        k = st.text_input(tr("Anthropic API key (kept only for this session)", "مفتاح Anthropic API (يُحفظ لهذه الجلسة فقط)"), type="password",
-                          value=st.session_state.get("_ai_key", ""), key="ai_key_in")
-        if k != st.session_state.get("_ai_key", ""):
-            st.session_state["_ai_key"] = k.strip()
-            st.rerun()
-        st.caption(tr("Without a key the assistant works offline: rule-based model advice, the platform's methodology library for questions, and "
-                      "template-based writing from the computed results. Administrators can set ANTHROPIC_API_KEY (and optionally AETHERIS_AI_MODEL) in the "
-                      "app's secrets. Only result tables, interpretations and a data profile are sent — never your raw data.",
-                      "دون مفتاح يعمل المساعد دون اتصال: نصائح النماذج بالقواعد، ومكتبة المنهجيات في المنصة للأسئلة، والكتابة بالقوالب من النتائج المحسوبة. "
-                      "ويمكن للمسؤول ضبط ANTHROPIC_API_KEY (واختيارياً AETHERIS_AI_MODEL) في أسرار التطبيق. لا يُرسل إلا جداول النتائج وتفسيراتها "
-                      "ووصف مختصر لبنية البيانات — ولا تُرسل بياناتك الخام أبداً."))
+    from analytics.ai_settings_ui import settings_panel
+    llm = settings_panel("ai")
     tabs = st.tabs([tr("🧭 Model advisor", "🧭 مستشار النماذج"), tr("💬 Ask", "💬 اسأل"), tr("✍️ Write", "✍️ اكتب")])
     with tabs[0]:
         _advisor(llm)
