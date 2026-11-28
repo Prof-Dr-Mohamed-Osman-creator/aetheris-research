@@ -836,3 +836,35 @@ def country_emissions_demo(seed: int = 74) -> pd.DataFrame:
                          "co2_mt": round(co2, 4), "temperature_c": round(temp, 3), "gdp_growth": round(g if yr > 1990 else np.nan, 5) if yr > 1990 else np.nan})
     df = pd.DataFrame(rows)
     return df
+
+
+def macro_dashboard_demo(seed: int = 112) -> pd.DataFrame:
+    """Synthetic monthly macro indicators 2005-01 … 2024-12 for the decision-maker dashboard: inflation, exchange rate,
+    reserves (months of imports), private-credit growth, unemployment, a food-price index, the current account and a
+    binary currency-crisis indicator. Before each of the three crisis episodes reserves fall, credit booms and
+    inflation accelerates — so the early-warning signals have something to find."""
+    rng = np.random.default_rng(seed)
+    dates = pd.date_range("2005-01-01", "2024-12-01", freq="MS")
+    n = len(dates)
+    crisis = np.zeros(n, int)
+    episodes = [(dates.get_loc(pd.Timestamp("2008-10-01")), 6), (dates.get_loc(pd.Timestamp("2016-11-01")), 8), (dates.get_loc(pd.Timestamp("2022-03-01")), 10)]
+    pressure = np.zeros(n)
+    for s0, L in episodes:
+        crisis[s0:s0 + L] = 1
+        ramp = np.clip((np.arange(n) - (s0 - 18)) / 18, 0, 1) * (np.arange(n) < s0 + L)
+        decay = np.exp(-np.clip(np.arange(n) - (s0 + L), 0, None) / 6) * (np.arange(n) >= s0 + L)
+        pressure += ramp + decay * (np.arange(n) >= s0 + L)
+    e = lambda s: rng.normal(0, s, n)  # noqa: E731
+    infl = 8 + 6 * pressure + np.cumsum(e(0.15)) * 0.3 + e(0.6)
+    fx = 5.5 * np.exp(np.cumsum(0.002 + 0.03 * crisis + e(0.004)))
+    lfx = np.log(fx)
+    infl = infl + 30 * (lfx - np.r_[np.full(12, lfx[0]), lfx[:-12]])          # exchange-rate pass-through (y/y depreciation)
+    reserves = np.clip(7 - 3.5 * pressure + np.cumsum(e(0.05)) * 0.2 + e(0.25), 1.2, None)
+    credit = 12 + 9 * np.roll(pressure, -6) * (np.arange(n) < n - 6) - 6 * crisis + e(1.2)
+    unemp = 10 + 2.5 * np.roll(crisis.astype(float), 4).cumsum() / np.arange(1, n + 1) * 20 + e(0.25)
+    food = 100 * np.exp(np.cumsum(0.004 + 0.012 * pressure / 3 + e(0.01)))
+    ca = -2 - 3 * pressure + e(0.5)
+    df = pd.DataFrame({"date": dates, "year": dates.year, "inflation_pct": infl.round(2), "exchange_rate": fx.round(3), "reserves_months_imports": reserves.round(2),
+                       "private_credit_growth_pct": credit.round(2), "unemployment_pct": unemp.round(2), "food_price_index": food.round(1),
+                       "current_account_pct_gdp": ca.round(2), "crisis": crisis})
+    return df

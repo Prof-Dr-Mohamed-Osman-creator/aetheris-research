@@ -24,6 +24,8 @@ LANG = {
         "impact": "Impact, Spatial & Climate Lab",
         "operations": "Operations Research",
         "reports": "Report Studio",
+        "assistant": "AI Research Assistant",
+        "dashboard": "Decision Dashboard",
         "academy": "Academy",
         "community": "Community",
 
@@ -62,6 +64,8 @@ LANG = {
         "impact": "مختبر الأثر والمكان والمناخ",
         "operations": "بحوث العمليات",
         "reports": "استوديو التقارير",
+        "assistant": "المساعد البحثي الذكي",
+        "dashboard": "لوحة صانع القرار",
         "academy": "الأكاديمية",
         "community": "المجتمع",
 
