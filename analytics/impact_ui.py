@@ -104,7 +104,7 @@ def _finish(kind, key, sheets: dict, title, docx_tables=(), code_kw=None):
     _code(ir.code(kind, **(code_kw or {})), f"{key}_code")
 
 
-_IDLIKE = ("year", "round", "quarter", "month", "_id", "id_", "period", "first_treated", "cohort", "season")
+_IDLIKE = ("year", "round", "quarter", "month", "_id", "id_", "period", "first_treated", "cohort")
 
 
 def _num(df, exclude=()):
@@ -112,7 +112,7 @@ def _num(df, exclude=()):
     out = []
     for c in ds.numeric_columns(df):
         lc = c.lower()
-        if c in exclude or c in tc or lc in ("id", "year") or any(k in lc for k in _IDLIKE):
+        if c in exclude or c in tc or lc in ("id", "year", "season") or any(k in lc for k in _IDLIKE):
             continue
         out.append(c)
     return out
@@ -188,10 +188,14 @@ def render_impact():
                     tr("✂️ Regression discontinuity", "✂️ انقطاع الانحدار"), tr("⚖️ Matching & weighting", "⚖️ المطابقة والترجيح"),
                     tr("🌡️ Climate impacts", "🌡️ آثار المناخ"), tr("🏭 Emissions & damages", "🏭 الانبعاثات والأضرار")])
     fns = [_quantile, _spatial_auto, _spatial_reg, _rct_iv, _did, _synth, _rdd, _matching, _climate, _emissions]
+    import time as _time
     for tab, fn in zip(tabs, fns):
         with tab:
             try:
+                _t0 = _time.time()
                 fn(df)
+                if _time.time() - _t0 > 3:
+                    print(f"[impact] {fn.__name__}: {_time.time() - _t0:.1f}s", flush=True)
             except Exception as e:  # noqa: BLE001
                 import traceback
                 traceback.print_exc()
@@ -268,7 +272,10 @@ def _quantile(df):
     jt.insert(0, "OLS", [f"{b:.4f}" for b in O["Coef."]])
     st.markdown("**" + tr("Journal table: coefficients (standard errors) by quantile", "جدول المجلات: المعاملات (الأخطاء المعيارية) حسب الكمية") + "**")
     st.dataframe(_disp(jt.reset_index()), width="stretch", hide_index=True)
-    eq = qn.slope_equality(df, y, xs)
+    eq = _load("qeq", sig)
+    if eq is None:
+        eq = qn.slope_equality(df, y, xs)
+        _store("qeq", eq, sig)
     st.markdown("**" + tr("Equality of slopes across τ = 0.25, 0.5, 0.75 (Koenker-Bassett)", "تساوي الميول عبر الكميات 0.25 و0.5 و0.75 (كوينكر-باسيت)") + "**")
     _table(eq, 4)
     cols = st.columns(min(len(xs), 3))
@@ -810,9 +817,10 @@ def _synth(df):
     placebo = st.checkbox(tr("Run in-space placebos (slower)", "تشغيل اختبارات الوهم المكانية (أبطأ)"), not many, key="sc_pl")
     sig = (u, t, y, tu_, tt, tuple(preds), placebo, active_name())
     r = _load("sc", sig)
-    if r is None and many and not st.button(tr(f"▶️ Estimate ({len(units)} units)", f"▶️ تقدير ({len(units)} وحدة)"), key="sc_run"):
-        st.info(tr("Synthetic control is designed for one treated unit and a few dozen donors; press the button to estimate.",
-                   "صُمم الضابط التركيبي لوحدة معالجة واحدة وعشرات قليلة من المانحين؛ اضغط الزر للتقدير."))
+    if r is None and not st.button(tr(f"▶️ Estimate the synthetic control ({len(units) - 1} donors)", f"▶️ تقدير الضابط التركيبي ({len(units) - 1} مانحاً)"),
+                                   key="sc_run", type="primary"):
+        st.info(tr("Choose the treated unit and treatment date, then press the button (placebos re-estimate the model for every donor, so this can take a minute).",
+                   "اختر الوحدة المعالجة وتاريخ المعالجة ثم اضغط الزر (اختبارات الوهم تعيد التقدير لكل مانح، وقد يستغرق ذلك دقيقة)."))
         return
     if r is None:
         with st.spinner(tr("Optimising weights and placebos…", "جارٍ تحسين الأوزان واختبارات الوهم…")):
@@ -1145,11 +1153,17 @@ def _climate(df):
     elif spec == "quad":
         Wi = cl.warming_impact(r, base_tmean=float(df[kw["tmean"]].mean()))
     else:
-        bl = [b_ for b_ in r["b"] if b_.startswith("days")]
-        hot = [b_ for b_ in bl if any(k in b_ for k in ("30", "35", "gt"))]
-        cool = [b_ for b_ in bl if b_ not in hot]
-        Wi = cl.warming_impact(r, bin_shift={**{h: 6.0 / max(len(hot), 1) for h in hot}, **{c: -6.0 / max(len(cool), 1) for c in cool}})
-        st.caption(tr("Approximation: each +1 °C moves 6 season days from cooler bins into hot bins.", "تقريب: كل +1 °م ينقل 6 أيام من الفئات الأبرد إلى الفئات الحارة."))
+        allb = kw["bins"]                                   # ordered from coolest to hottest, reference included
+        width = st.number_input(tr("Bin width (°C)", "عرض الفئة (°م)"), 1.0, 10.0, 5.0, 1.0, key="tp_bw")
+        mean_days = df[allb].mean()
+        shift = {}
+        for j, bname in enumerate(allb):
+            inflow = mean_days.iloc[j - 1] / width if j > 0 else 0.0
+            outflow = mean_days.iloc[j] / width if j < len(allb) - 1 else 0.0
+            shift[bname] = inflow - outflow                 # change in days per +1 °C (uniform days within bins)
+        Wi = cl.warming_impact(r, bin_shift=shift)
+        st.caption(tr(f"Each +1 °C moves 1/{width:g} of the days in every bin up to the next (hotter) bin — days assumed uniform within bins.",
+                      f"كل +1 °م ينقل 1/{width:g} من أيام كل فئة إلى الفئة الأعلى حرارة — بافتراض توزيع الأيام بانتظام داخل الفئة."))
     _table(Wi, 3)
     fig = go.Figure(go.Bar(x=Wi["Warming (°C)"], y=Wi["% change"], marker_color=PAL[2], error_y=dict(type="data", symmetric=False, array=Wi["% CI high"] - Wi["% change"],
                                                                                                    arrayminus=Wi["% change"] - Wi["% CI low"])))
@@ -1167,7 +1181,8 @@ def _climate(df):
         msg += tr(f" Optimal season temperature ≈ {r['optimum']:.1f} °C.", f" حرارة الموسم المثلى ≈ {r['optimum']:.1f} °م.")
     insight(msg)
     _finish("temp_response", "cl_tp", {"Coefficients": r["table"], "Warming impacts": Wi}, tr("Temperature response", "استجابة الإنتاجية للحرارة"), [r["table"], Wi],
-            {"y": y, "x": [kw.get("gdd", "gdd"), kw.get("kdd", "kdd")] if spec == "gddkdd" else ["tmean_season"], "unit": u, "time": t})
+            {"y": y, "x": [kw.get("gdd", "gdd"), kw.get("kdd", "kdd")] if spec == "gddkdd" else [b_ for b_ in kw.get("bins", []) if b_ != kw.get("ref_bin")] or [kw.get("tmean", "tmean")],
+             "unit": u, "time": t})
 
 
 # ---------------------------------------------------------- 10. emissions & damages
