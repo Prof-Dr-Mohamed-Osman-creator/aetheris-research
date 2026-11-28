@@ -28,6 +28,12 @@ init_memory()
 from core import report_store as _rs  # noqa: E402  (v1.12 result capture for the Report Studio)
 _rs.install_hooks()
 _rs.new_run()
+try:  # v1.12.3: unlock the platform AI key on a remembered device
+    from analytics.ai_settings_ui import restore_device_code as _restore_ai, after_unlock as _after_ai
+    _restore_ai()
+    _after_ai()
+except Exception:  # noqa: BLE001
+    pass
 
 LANG_OPTIONS = {"en": "English", "ar": "العربية"}
 

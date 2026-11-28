@@ -5,6 +5,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+
 import streamlit as st
 
 from analytics import ai_providers as ap
@@ -90,11 +93,14 @@ def settings_panel(key: str = "ai", expanded: bool | None = None):
             except Exception as e:  # noqa: BLE001
                 st.warning(tr(f"Could not fetch the model list: {e}", f"تعذّر جلب قائمة النماذج: {e}"))
         if ap.access_code() and not keys.get(prov) and prov in srv and ss.get("_ai_code") != ap.access_code():
-            code = st.text_input(tr("Access code for the platform key", "رمز الدخول لمفتاح المنصة"), type="password", key=f"{key}_code")
-            if code:
-                ss["_ai_code"] = code.strip()
-                if code.strip() != ap.access_code():
-                    st.error(tr("Wrong code.", "الرمز غير صحيح."))
+            _code_input(f"{key}_set")
+        if ap.access_code() and ss.get("_ai_code") == ap.access_code():
+            f1, f2 = st.columns([3, 1])
+            f1.caption(tr("🔓 Platform key unlocked" + (" — remembered on this device." if ss.get("_ai_device") else " for this session."),
+                          "🔓 مفتاح المنصة مفتوح" + (" — ومُتذكَّر على هذا الجهاز." if ss.get("_ai_device") else " لهذه الجلسة.")))
+            if f2.button(tr("Forget this device", "انسَ هذا الجهاز"), key=f"{key}_forget"):
+                forget_device()
+                st.rerun()
         llm = ap.resolve(ss)
         st.markdown(status_line(llm))
         if llm.available and st.button(tr("🧪 Test connection", "🧪 اختبار الاتصال"), key=f"{key}_test"):
@@ -121,16 +127,10 @@ def gate(llm, key: str = "gate"):
     the daily-limit notice, or the free-key links. Returns the (possibly now available) LLM."""
     if llm.available:
         return llm
-    ss = st.session_state
     if llm.reason == "code":
-        st.info(tr("🔐 The platform's AI key is protected. Enter the access code once per session (each time the page is opened or refreshed).",
-                   "🔐 مفتاح الذكاء الاصطناعي للمنصة محمي. أدخل رمز الدخول مرة واحدة في كل جلسة (عند كل فتح أو تحديث للصفحة)."))
-        code = st.text_input(tr("Access code", "رمز الدخول"), type="password", key=f"{key}_code")
-        if code:
-            if code.strip() == (ap.access_code() or ""):
-                ss["_ai_code"] = code.strip()
-                st.rerun()
-            st.error(tr("Wrong code.", "الرمز غير صحيح."))
+        st.info(tr("🔐 The platform's AI key is protected. Enter the access code — tick “remember” and this browser won't ask again.",
+                   "🔐 مفتاح الذكاء الاصطناعي للمنصة محمي. أدخل رمز الدخول — واختر «تذكّر» فلن يطلبه هذا المتصفح مرة أخرى."))
+        _code_input(key)
         return llm
     if llm.reason == "limit":
         st.warning(tr("Today's limit for the platform's AI key is used up. Add your own free key in “⚙️ AI model & key”, or come back tomorrow.",
@@ -144,3 +144,102 @@ def gate(llm, key: str = "gate"):
     c1.markdown(f"[{tr('🔑 Free Gemini key', '🔑 مفتاح Gemini مجاني')}](https://aistudio.google.com/apikey)")
     c2.markdown(f"[{tr('🔑 Free Groq key', '🔑 مفتاح Groq مجاني')}](https://console.groq.com/keys)")
     return llm
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# "Remember on this device": the browser keeps a cookie holding a token derived from the access code (never the code
+# itself); Streamlit reads it at the start of every session (st.context.cookies) and unlocks the platform key. A URL
+# parameter ?ai=<token> works as a fallback (private bookmark). Changing the access code revokes every remembered device.
+# ----------------------------------------------------------------------------------------------------------------------
+_COOKIE = "aetheris_ai_device"
+_QP = "ai"
+
+
+def device_token(code: str) -> str:
+    return hmac.new(f"{code}|aetheris-ai-device".encode(), b"remember-this-device", hashlib.sha256).hexdigest()[:32]
+
+
+def _js(script: str):
+    import streamlit.components.v1 as components
+    components.html(f"<script>try{{{script}}}catch(e){{}}</script>", height=0)
+
+
+def _cookie_js(value: str | None):
+    if value:
+        return f"document.cookie='{_COOKIE}={value}; max-age=31536000; path=/; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'');"
+    return f"document.cookie='{_COOKIE}=; max-age=0; path=/; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'');"
+
+
+def _read_cookie():
+    try:
+        return st.context.cookies.get(_COOKIE)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def restore_device_code():
+    """Call early on every run: unlock from the device cookie or the ?ai=<token> link."""
+    code = ap.access_code()
+    ss = st.session_state
+    if not code or ss.get("_ai_code") == code or ss.get("_ai_forgotten"):
+        return
+    good = device_token(code)
+    for tok, src in ((_read_cookie(), "cookie"), (st.query_params.get(_QP), "link")):
+        if not tok:
+            continue
+        if hmac.compare_digest(str(tok), good):
+            ss["_ai_code"] = code
+            ss["_ai_device"] = True
+            return
+        if src == "cookie" and not ss.get("_ai_stale_cleared"):     # stale token (code changed): forget it on this device
+            ss["_ai_stale_cleared"] = True
+            _js(_cookie_js(None))
+
+
+def remember_device(code: str):
+    _js(_cookie_js(device_token(code)))
+    st.session_state["_ai_device"] = True
+
+
+def forget_device():
+    """Lock again and forget this device. The cookie is cleared on the next run (a component rendered just before
+    st.rerun() never reaches the browser), and restore is disabled for the rest of the session because
+    st.context.cookies still holds the cookie the session started with."""
+    ss = st.session_state
+    ss.pop("_ai_code", None)
+    ss["_ai_device"] = False
+    ss["_ai_forgotten"] = True
+    ss["_ai_forget_pending"] = True
+    try:
+        del st.query_params[_QP]
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def private_link(code: str, base: str = "https://aetheris-research.streamlit.app/") -> str:
+    return f"{base}?{_QP}={device_token(code)}"
+
+
+def _code_input(key: str):
+    """Access-code field with 'remember on this device'."""
+    code = st.text_input(tr("Access code", "رمز الدخول"), type="password", key=f"{key}_code")
+    remember = st.checkbox(tr("Remember on this device (don't ask again in this browser)", "تذكّر على هذا الجهاز (لا تطلبه مرة أخرى في هذا المتصفح)"),
+                           True, key=f"{key}_remember")
+    if code:
+        if code.strip() == (ap.access_code() or ""):
+            st.session_state["_ai_code"] = code.strip()
+            if remember:
+                st.session_state["_ai_remember_pending"] = True
+            st.rerun()
+        st.error(tr("Wrong code.", "الرمز غير صحيح."))
+
+
+def after_unlock():
+    """Called on every run after the gate: store the device token once the code was accepted with 'remember'."""
+    ss = st.session_state
+    if ss.pop("_ai_forget_pending", False):
+        _js(_cookie_js(None))
+    if ss.pop("_ai_remember_pending", False) and ss.get("_ai_code"):
+        ss.pop("_ai_forgotten", None)
+        remember_device(ss["_ai_code"])
+        st.toast(tr("🔓 This device will be remembered.", "🔓 سيُتذكر هذا الجهاز."))
