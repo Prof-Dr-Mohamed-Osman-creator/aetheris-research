@@ -114,3 +114,33 @@ def compact_status():
     llm = ap.resolve(st.session_state)
     st.caption(status_line(llm) + tr("  ·  change provider / model / key in 🤖 AI Research Assistant", "  ·  غيّر المزوّد أو النموذج أو المفتاح من 🤖 المساعد البحثي الذكي"))
     return llm
+
+
+def gate(llm, key: str = "gate"):
+    """Explain why the AI is unavailable and fix it in place: an access-code field when the platform key is protected,
+    the daily-limit notice, or the free-key links. Returns the (possibly now available) LLM."""
+    if llm.available:
+        return llm
+    ss = st.session_state
+    if llm.reason == "code":
+        st.info(tr("🔐 The platform's AI key is protected. Enter the access code once per session (each time the page is opened or refreshed).",
+                   "🔐 مفتاح الذكاء الاصطناعي للمنصة محمي. أدخل رمز الدخول مرة واحدة في كل جلسة (عند كل فتح أو تحديث للصفحة)."))
+        code = st.text_input(tr("Access code", "رمز الدخول"), type="password", key=f"{key}_code")
+        if code:
+            if code.strip() == (ap.access_code() or ""):
+                ss["_ai_code"] = code.strip()
+                st.rerun()
+            st.error(tr("Wrong code.", "الرمز غير صحيح."))
+        return llm
+    if llm.reason == "limit":
+        st.warning(tr("Today's limit for the platform's AI key is used up. Add your own free key in “⚙️ AI model & key”, or come back tomorrow.",
+                      "استُنفد حد اليوم لمفتاح المنصة. أضف مفتاحك المجاني في «⚙️ نموذج الذكاء الاصطناعي والمفتاح»، أو عد غداً."))
+        return llm
+    st.warning(tr("No AI key for the selected provider. A free key is enough — Gemini (Google) or Groq: open “⚙️ AI model & key” above, choose the "
+                  "provider and paste the key (or ask the administrator to add a platform key).",
+                  "لا يوجد مفتاح للمزوّد المختار. يكفي مفتاح مجاني — Gemini من Google أو Groq: افتح «⚙️ نموذج الذكاء الاصطناعي والمفتاح» في الأعلى، "
+                  "واختر المزوّد، والصق المفتاح (أو اطلب من المسؤول إضافة مفتاح للمنصة)."))
+    c1, c2 = st.columns(2)
+    c1.markdown(f"[{tr('🔑 Free Gemini key', '🔑 مفتاح Gemini مجاني')}](https://aistudio.google.com/apikey)")
+    c2.markdown(f"[{tr('🔑 Free Groq key', '🔑 مفتاح Groq مجاني')}](https://console.groq.com/keys)")
+    return llm

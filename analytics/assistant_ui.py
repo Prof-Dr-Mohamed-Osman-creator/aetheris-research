@@ -56,14 +56,8 @@ def _free_chat(llm):
                   "references against Crossref.",
                   "تحدّث بحرية مع الذكاء الاصطناعي في أي شأن بحثي — المفاهيم، ونقد نموذج، وأفكار لرسالة، والصياغة، والترجمة. يجيب من معرفته "
                   "(دون حاجة إلى مصادر). تعامل بحذر مع الحقائق والمراجع الصادرة من ذاكرة النموذج: استخدم 🔎 للتحقق من المراجع عبر Crossref."))
-    if not llm.available:
-        st.warning(tr("The free conversation needs an AI model. A free key is enough — Gemini (Google) or Groq — no Claude key required: open "
-                      "“⚙️ AI model & key” above, choose the provider and paste the key.",
-                      "تحتاج المحادثة الحرة إلى نموذج ذكاء اصطناعي. يكفي مفتاح مجاني — Gemini من Google أو Groq — دون حاجة إلى مفتاح Claude: افتح "
-                      "«⚙️ نموذج الذكاء الاصطناعي والمفتاح» في الأعلى، واختر المزوّد، والصق المفتاح."))
-        c1, c2 = st.columns(2)
-        c1.markdown(f"[{tr('🔑 Free Gemini key', '🔑 مفتاح Gemini مجاني')}](https://aistudio.google.com/apikey)")
-        c2.markdown(f"[{tr('🔑 Free Groq key', '🔑 مفتاح Groq مجاني')}](https://console.groq.com/keys)")
+    from analytics.ai_settings_ui import gate
+    llm = gate(llm, "fc")
     with st.expander(tr("📎 Attach context to my next questions (optional)", "📎 أرفق سياقاً بأسئلتي القادمة (اختياري)"), expanded=False):
         a, b, c = st.columns(3)
         use_data = a.checkbox(tr("Structure of the active dataset", "بنية البيانات النشطة"), False, key="fc_ctx_data", disabled=not has_data())
