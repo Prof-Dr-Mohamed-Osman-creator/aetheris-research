@@ -269,3 +269,39 @@ m <- feols(gdp_growth ~ temperature_c + I(temperature_c^2) + i(country, tt) | co
     _close(np.r_[e["table"].Estimate, e["table"]["Std. Err."]], B["ekc"], 1e-8)
     b = K.bhm(ce, "country", "year", "gdp_growth", "temperature_c")
     _close(np.r_[b["table"].Estimate, b["table"]["Std. Err."]], B["bhm"], 1e-6)
+
+
+def test_spatial_panel_matches_pysal_spreg():
+    """Coefficients and analytical standard errors against PySAL spreg Panel_FE_Lag / Panel_FE_Error (Elhorst)."""
+    libpysal = pytest.importorskip("libpysal")
+    spreg = pytest.importorskip("spreg")
+    P = smp.spatial_panel_demo()
+    units = pd.unique(P.district)
+    W = S.weights(P.drop_duplicates("district")[["longitude", "latitude"]].values, "knn", 6)
+    w = libpysal.weights.full2W(W)
+    w.transform = "r"
+
+    def wide(c):
+        return P.pivot(index="district", columns="year", values=c).loc[units].to_numpy()
+    y, X = wide("ln_yield"), np.hstack([wide("ln_fertilizer"), wide("rainfall_anomaly")])
+    for cls, mdl in ((spreg.Panel_FE_Lag, "sar"), (spreg.Panel_FE_Error, "sem")):
+        m = cls(y, X, w)
+        r = S.spatial_panel(P, "district", "year", "ln_yield", ["ln_fertilizer", "rainfall_anomaly"], W, mdl)
+        _close(r["table"]["Coef."], np.ravel(m.betas)[:3], 1e-6)
+        _close(r["table"]["Std. Err."], np.sqrt(np.diag(m.vm))[:3], 1e-6)
+
+
+def test_sdid_matches_synthdid_port():
+    """Synthetic DiD against `synthdid` (Python port of the R package synthdid): ATT and unit / time weights."""
+    sdp = pytest.importorskip("synthdid.synthdid")
+    sc = smp.scm_regions_demo()
+    sc["D"] = ((sc.region == "Sinai Coast") & (sc.year >= 2012)).astype(int)
+    st = smp.staggered_did_demo()
+    st = st[st.first_treated.isin([0, 2017])].copy()
+    st["D"] = ((st.first_treated > 0) & (st.year >= 2017)).astype(int)
+    for d, u, t, y in ((sc, "region", "year", "ln_gdp_pc"), (st, "village", "year", "ln_water_productivity")):
+        m = sdp.Synthdid(d, u, t, "D", y).fit()
+        o = C.synth_did(d, u, t, y, "D", reps=5)
+        assert abs(m.att_info.att_time.iloc[0] - o["ATT"]) < 1e-10
+        assert np.abs(np.sort(np.ravel(m.weights["omega"])) - np.sort(o["unit weights"].to_numpy())).max() < 1e-10
+        assert np.abs(np.ravel(m.weights["lambda"]) - o["time weights"].to_numpy()).max() < 1e-10

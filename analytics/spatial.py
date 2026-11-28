@@ -479,8 +479,26 @@ def spatial_panel(df: pd.DataFrame, unit: str, time: str, y: str, x: list, W, mo
             ee = (yv - p * wy) - (X - p * WX) @ bb
         return -NT / 2 * np.log(2 * np.pi) - NT / 2 * ls2 - ee @ ee / (2 * np.exp(ls2)) + T * ld(p)
     th = np.r_[b, par, np.log(s2)]
-    from statsmodels.tools.numdiff import approx_hess
-    V = np.linalg.inv(approx_hess(th, lambda t: -llf(t)))
+    # analytical asymptotic information (Elhorst 2014, as spreg Panel_FE_Lag / Panel_FE_Error and spatialreg)
+    k = len(b)
+    M = np.linalg.inv(np.eye(N) - par * W)
+    Am = W @ M
+    if model == "sar":
+        AXb = np.einsum("ij,tj->ti", Am, (X @ b).reshape(T, N)).ravel()
+        Info = np.zeros((k + 2, k + 2))
+        Info[:k, :k] = X.T @ X / s2
+        Info[:k, k] = Info[k, :k] = X.T @ AXb / s2
+        Info[k, k] = T * (np.trace(Am @ Am) + np.trace(Am.T @ Am)) + AXb @ AXb / s2
+        Info[k, k + 1] = Info[k + 1, k] = T * np.trace(Am) / s2
+        Info[k + 1, k + 1] = NT / (2 * s2 ** 2)
+        V = np.linalg.inv(Info)
+    else:
+        Xs = X - par * WX
+        V = np.zeros((k + 2, k + 2))
+        V[:k, :k] = s2 * np.linalg.inv(Xs.T @ Xs)
+        Iw = np.array([[T * (np.trace(Am @ Am) + np.trace(Am.T @ Am)), T * np.trace(Am) / s2], [T * np.trace(Am) / s2, NT / (2 * s2 ** 2)]])
+        Vw = np.linalg.inv(Iw)
+        V[k, k], V[k + 1, k + 1] = Vw[0, 0], Vw[1, 1]
     est = th[:-1]
     se = np.sqrt(np.diag(V))[:-1]
     nm = list(x) + (["ρ"] if model == "sar" else ["λ"])
