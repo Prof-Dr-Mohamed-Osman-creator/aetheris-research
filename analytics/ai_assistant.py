@@ -4,15 +4,15 @@
 # 2) Writer: methodology, results, abstract and plain-language summaries written ONLY from the computed results (the
 #    numbers in the output are checked against the results and any untraceable figure is flagged);
 # 3) Q&A in Arabic or English, grounded in the platform's methodology library and the session's results.
-# Uses Claude (Anthropic API) when a key is configured (Streamlit secret / env ANTHROPIC_API_KEY, or entered for the
-# session); otherwise a deterministic offline mode answers from the built-in library and templates.
+# Works with Claude, ChatGPT, Gemini, Groq, OpenRouter or any OpenAI-compatible model (analytics/ai_providers.py), with
+# the researcher's own key or the platform key under access controls; otherwise a deterministic offline mode answers from
+# the built-in library and templates.
 # ==========================================
 
 from __future__ import annotations
 
 import inspect
 import json
-import os
 import re
 
 import numpy as np
@@ -20,55 +20,16 @@ import pandas as pd
 
 from analytics import report_studio as rs
 
-DEFAULT_MODEL = "claude-sonnet-5-5"
+from analytics.ai_providers import LLM, PROVIDERS, resolve  # noqa: E402,F401  (multi-provider layer, v1.12.1)
 
 
-# ======================================================================================================================
-# LLM client
-# ======================================================================================================================
-def api_key(session_key: str | None = None) -> str | None:
-    if session_key:
-        return session_key
+def session_llm() -> LLM:
+    """The LLM for the current Streamlit session (user key first, else the governed platform key)."""
     try:
         import streamlit as st
-        k = st.secrets.get("ANTHROPIC_API_KEY") if hasattr(st, "secrets") else None
-        if k:
-            return str(k)
+        return resolve(st.session_state)
     except Exception:  # noqa: BLE001
-        pass
-    return os.environ.get("ANTHROPIC_API_KEY")
-
-
-def model_name() -> str:
-    try:
-        import streamlit as st
-        m = st.secrets.get("AETHERIS_AI_MODEL")
-        if m:
-            return str(m)
-    except Exception:  # noqa: BLE001
-        pass
-    return os.environ.get("AETHERIS_AI_MODEL", DEFAULT_MODEL)
-
-
-class LLM:
-    def __init__(self, key: str | None = None, model: str | None = None, client=None):
-        self.key = api_key(key)
-        self.model = model or model_name()
-        self._client = client
-
-    @property
-    def available(self) -> bool:
-        return self._client is not None or bool(self.key)
-
-    def client(self):
-        if self._client is None:
-            import anthropic
-            self._client = anthropic.Anthropic(api_key=self.key)
-        return self._client
-
-    def complete(self, system: str, messages: list, max_tokens: int = 1500, temperature: float = 0.2) -> str:
-        resp = self.client().messages.create(model=self.model, system=system, messages=messages, max_tokens=max_tokens, temperature=temperature)
-        return "".join(getattr(b, "text", "") for b in resp.content).strip()
+        return LLM("anthropic", None, None)
 
 
 SYSTEM = {

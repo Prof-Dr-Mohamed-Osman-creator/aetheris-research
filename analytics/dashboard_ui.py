@@ -70,7 +70,8 @@ def _findings():
                 st.markdown(rs.strip_html(r["insights"][0]))
             else:
                 st.markdown(rs.results_paragraph(r, _lang())[:600] or tr("(no interpretation recorded)", "(لا يوجد تفسير مسجل)"))
-    llm = ai.LLM(st.session_state.get("_ai_key"))
+    from analytics.ai_settings_ui import compact_status
+    llm = compact_status()
     if st.button(tr("🗞️ Write a one-page policy brief from these results", "🗞️ اكتب موجز سياسات من صفحة واحدة من هذه النتائج"), key="db_brief", type="primary"):
         try:
             with st.spinner("…"):
