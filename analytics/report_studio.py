@@ -288,7 +288,12 @@ def assemble(items: list, meta: dict, lang: str = "en") -> dict:
         if kind == "text":
             if it.get("title"):
                 blocks.append(("h2", it["title"]))
-            blocks.append(("p", it.get("text", "")))
+            for para in [x.strip() for x in re.split(r"\n\s*\n", it.get("text", "")) if x.strip()]:
+                if para.startswith("## ") or para.startswith("# "):
+                    blocks.append(("h2", para.lstrip("# ").strip()))
+                else:
+                    blocks.append(("p", para))
+            refs += [r for r in it.get("references", []) if r]
             continue
         r = it["result"]
         sec += 1
@@ -302,7 +307,7 @@ def assemble(items: list, meta: dict, lang: str = "en") -> dict:
         for k, content in r.get("sections", []):
             if k == "h":
                 cur_h = strip_html(content)
-                blocks.append(("h2", cur_h))
+                blocks.append(("h2", cur_h, "auto"))          # auto headings are dropped when nothing follows them
             elif k == "p":
                 blocks.append(("p", strip_html(content)))
             elif k == "note":
@@ -328,7 +333,7 @@ def assemble(items: list, meta: dict, lang: str = "en") -> dict:
     # drop empty headings left behind (e.g. a "Methodology" heading whose text was not included)
     clean = []
     for i, b in enumerate(blocks):
-        if b[0] == "h2" and (i + 1 == len(blocks) or blocks[i + 1][0] in ("h1", "h2")):
+        if b[0] == "h2" and len(b) > 2 and (i + 1 == len(blocks) or blocks[i + 1][0] in ("h1", "h2")):
             continue
         clean.append(b)
     refs = sorted(dict.fromkeys(refs), key=lambda s: s.lower())

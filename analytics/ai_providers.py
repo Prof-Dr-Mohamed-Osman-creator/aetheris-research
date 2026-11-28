@@ -23,7 +23,7 @@ import os
 PROVIDERS = {
     "anthropic": {"label": "Claude (Anthropic)", "kind": "anthropic", "secret": "ANTHROPIC_API_KEY", "free": False,
                   "models": ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"], "cheap": ["claude-haiku-5-5"],
-                  "keys_url": "https://console.anthropic.com/settings/keys",
+                  "keys_url": "https://platform.claude.com/settings/keys",
                   "note": ("Paid per use (no free API tier). Haiku is the low-cost option.", "مدفوع حسب الاستخدام (لا توجد شريحة مجانية للـ API). Haiku هو الخيار منخفض التكلفة.")},
     "openai": {"label": "ChatGPT (OpenAI)", "kind": "openai", "base": "https://api.openai.com/v1", "secret": "OPENAI_API_KEY", "free": False,
                "models": ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-6.2-sol"], "cheap": ["gpt-5.6-luna", "gpt-5-mini", "gpt-5-nano"],
