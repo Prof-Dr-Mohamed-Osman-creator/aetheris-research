@@ -154,10 +154,11 @@ if page == "home":
             "كل تحليل يُلتقط بجداوله ورسومه وتفسيره ومراجعه؛ رتّبها في تقرير واحد بجداول وأشكال مرقمة بنمط APA وصدّره إلى Word وPDF وLaTeX "
             "وHTML وMarkdown — بالعربية (من اليمين لليسار) أو الإنجليزية.")),
         ("🤖", tr("AI Research Assistant", "المساعد البحثي الذكي"),
-         tr("Suggests the model for your question and data, drafts methodology, results, discussion, abstracts and policy briefs only from the computed "
-            "numbers (every number is checked), and answers methodological questions in Arabic — with an offline mode.",
-            "يقترح النموذج المناسب لسؤالك وبياناتك، ويصوغ المنهجية والنتائج والمناقشة والملخص وموجز السياسات من الأرقام المحسوبة فقط (مع فحص كل "
-            "رقم)، ويجيب عن الأسئلة المنهجية بالعربية — مع وضع يعمل دون اتصال.")),
+         tr("A research-writing workspace (introduction, literature review, theoretical framework, hypotheses …) grounded only in your own sources, "
+            "model advice, results and policy briefs written only from the computed numbers (every number and citation is checked), and Arabic Q&A — "
+            "with Claude, ChatGPT, Gemini or free models, or offline.",
+            "مساحة للكتابة البحثية (المقدمة، والدراسات السابقة، والإطار النظري، والفروض …) تستند إلى مصادرك فقط، ونصائح النماذج، وكتابة النتائج "
+            "وموجز السياسات من الأرقام المحسوبة فقط (مع فحص كل رقم واستشهاد)، والإجابة بالعربية — مع Claude أو ChatGPT أو Gemini أو نماذج مجانية، أو دون اتصال.")),
         ("🏛️", tr("Decision Dashboard", "لوحة صانع القرار"),
          tr("Key findings in plain language, KPI cards, early-warning traffic lights with a composite index, the signals approach for crisis prediction, "
             "forecast-based breach probabilities and what-if scenarios.",
